@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lista de Reyes</title>
 <script>try{if(localStorage.getItem("lista-reyes-theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 <header class="top">
@@ -63,6 +63,19 @@
   </form>
 </dialog>
 
+<dialog id="dlg-child">
+  <form id="form-child" method="dialog">
+    <h2>Editar ficha</h2>
+    <label>Nombre <input name="name" required maxlength="30"></label>
+    <label>Color <input name="color" type="color" value="#9ccaf5"></label>
+    <div class="row">
+      <button type="button" id="child-delete" class="danger">🗑️ Eliminar</button>
+      <button type="button" id="child-cancel" class="ghost">Cancelar</button>
+      <button type="submit" class="primary">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="dlg-cats">
   <h2>Categorías</h2>
   <div id="cat-list"></div>
@@ -75,6 +88,6 @@
 </dialog>
 
 <div id="toast" class="toast" hidden></div>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>

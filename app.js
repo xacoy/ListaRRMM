@@ -126,7 +126,7 @@
       const done = all.filter(isDone).length;
       const pct = all.length ? Math.round(done / all.length * 100) : 0;
       return `<section class="col" data-child="${ch.id}" style="--c:${childColor(ch, i)}">
-        <div class="col-head"><input class="col-name" value="${esc(ch.name)}" aria-label="Nombre" maxlength="30"><input type="color" class="col-color" value="${childColor(ch, i)}" title="Color de la ficha" aria-label="Color de la ficha"><button class="icon ghost" data-act="del-child" title="Eliminar ficha">🗑️</button></div>
+        <div class="col-head"><input class="col-name" value="${esc(ch.name)}" aria-label="Nombre" maxlength="30"><button class="icon ghost" data-act="edit-child" title="Editar ficha" aria-label="Editar ficha">✏️</button></div>
         <div class="stats">${all.length} ${all.length === 1 ? 'regalo' : 'regalos'} · ${all.filter(isBought).length} comprados · ${done} listos</div>
         <div class="bar"><i style="width:${pct}%"></i></div>
         ${shown.length ? shown.map(giftHtml).join('') : `<div class="empty">${all.length ? 'Nada con este filtro' : 'Aún no hay regalos'}</div>`}
@@ -154,14 +154,7 @@
     const gEl = btn.closest('.gift');
     const act = btn.dataset.act;
     if (act === 'add') return openGift(childId, null);
-    if (act === 'del-child') {
-      const ch = live(state.children).find(c => c.id === childId);
-      const owned = live(state.gifts).filter(g => g.child === childId);
-      if (owned.length && !confirm(`¿Eliminar la ficha de ${ch.name} y sus ${owned.length} regalos?`)) return;
-      [ch, ...owned].forEach(x => { x.del = true; touch(x); });
-      save(); render();
-      return toast('Ficha eliminada', () => { [ch, ...owned].forEach(x => { x.del = false; touch(x); }); save(); render(); });
-    }
+    if (act === 'edit-child') return openChild(childId);
     const g = state.gifts.find(x => x.id === gEl.dataset.id);
     if (act === 'edit') return openGift(childId, g);
   });
@@ -187,10 +180,8 @@
       }
       touch(g); save(); return render();
     }
-    const isName = e.target.classList.contains('col-name');
-    if (!isName && !e.target.classList.contains('col-color')) return;
+    if (!e.target.classList.contains('col-name')) return;
     const ch = state.children.find(c => c.id === e.target.closest('.col').dataset.child);
-    if (!isName) { ch.color = e.target.value; touch(ch); save(); return render(); }
     ch.name = e.target.value.trim() || ch.name; touch(ch); save(); render();
   });
   $('#f-status').onchange = $('#f-cat').onchange = render;
@@ -238,6 +229,32 @@
     else state.gifts.push(mk({ id: uid(), child: editing.childId, ...data }));
     save(); render(); dlg.close();
   });
+
+  // --- Diálogo de ficha (nombre, color, eliminar) ---
+  const dch = $('#dlg-child'), fch = $('#form-child');
+  let editingChild = null;
+  function openChild(id) {
+    const list = live(state.children), i = list.findIndex(c => c.id === id);
+    editingChild = list[i];
+    fch.name.value = editingChild.name;
+    fch.color.value = childColor(editingChild, i);
+    dch.showModal();
+  }
+  $('#child-cancel').onclick = () => dch.close();
+  fch.addEventListener('submit', e => {
+    e.preventDefault();
+    editingChild.name = fch.name.value.trim() || editingChild.name;
+    editingChild.color = fch.color.value;
+    touch(editingChild); save(); render(); dch.close();
+  });
+  $('#child-delete').onclick = () => {
+    const ch = editingChild;
+    const owned = live(state.gifts).filter(g => g.child === ch.id);
+    if (owned.length && !confirm(`¿Eliminar la ficha de ${ch.name} y sus ${owned.length} regalos?`)) return;
+    [ch, ...owned].forEach(x => { x.del = true; touch(x); });
+    save(); render(); dch.close();
+    toast('Ficha eliminada', () => { [ch, ...owned].forEach(x => { x.del = false; touch(x); }); save(); render(); });
+  };
 
   // --- Categorías ---
   const dc = $('#dlg-cats');
@@ -359,7 +376,7 @@
 
   function canRender() {
     const a = document.activeElement;
-    return !(a && (a.classList.contains('col-name') || a.classList.contains('col-color')));
+    return !(a && a.classList.contains('col-name'));
   }
 
   const headers = { 'Content-Type': 'application/json' };

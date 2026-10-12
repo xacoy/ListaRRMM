@@ -12,7 +12,6 @@ button,.btn{border:1px solid var(--line);background:var(--card);border-radius:10
 select{padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--card)}
 .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px;padding:0 16px 24px;align-items:start}
 .col{--c:var(--accent);background:color-mix(in srgb,var(--c) 9%,var(--card));border:1px solid color-mix(in srgb,var(--c) 40%,var(--line));border-top:8px solid var(--c);border-radius:16px;padding:12px;min-width:0}
-.col-color{flex:none;width:34px;height:30px}
 .col-head{display:flex;gap:8px;align-items:center}
 .col-name{color:var(--c);flex:1;min-width:0;font-size:1.25rem;font-weight:700;border:0;background:transparent;border-bottom:2px dashed transparent;padding:2px}
 .col-name:focus{outline:0;border-bottom-color:var(--accent)}
