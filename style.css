@@ -127,3 +127,12 @@ input[type=color]{width:42px;height:36px;padding:2px;border:1px solid var(--line
 
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:12px;display:flex;gap:10px;align-items:center;z-index:100}
 .toast button{background:transparent;color:inherit;border-color:currentColor;padding:2px 8px}
+
+/* Regalo finalizado (comprado en tienda o recibido): fondo y borde verdes, bien visibles */
+.gift.done{background:color-mix(in srgb,var(--ok) 50%,var(--card));box-shadow:inset 5px 0 0 #3fb27f,0 1px 5px #4b456018}
+.gift.done .gname{color:var(--ok-ink)}
+.gift.done .status-sel{box-shadow:0 0 0 1px #3fb27f80}
+.gift.flat.done{border-radius:10px;padding:6px 10px;margin:4px 0;border-top-color:transparent}
+.pname + .gift.flat.done{margin-top:2px}
+.gift.flat.done{margin:4px -4px;padding:6px 8px}
+.gift .status-sel{font-size:.75rem}
