@@ -64,6 +64,12 @@
   const childColor = (ch, i) => ch.color || PALETTE[i % PALETTE.length];
   const cat = id => live(state.categories).find(c => c.id === id);
 
+  // Fichas minimizadas: preferencia de este dispositivo (no se sincroniza).
+  const COLLAPSED_KEY = 'lista-reyes-collapsed';
+  let collapsed = new Set();
+  try { collapsed = new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY)) || []); } catch {}
+  const saveCollapsed = () => { try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsed])); } catch {} };
+
   let openCat = null; // regalo con el desplegable de categorías abierto
   let editing = null; // {childId, giftId|null}
   let pickedCats = new Set();
@@ -104,7 +110,7 @@
           <div class="panel">${live(state.categories).map(c =>
             `<label><input type="checkbox" class="catcb" data-cat="${c.id}" ${g.cats.includes(c.id) ? 'checked' : ''}><i style="background:${c.color}"></i>${esc(c.name)}</label>`).join('')}</div>
         </details>
-        <select class="sel status-sel ${g.status ? 'on' : ''}" aria-label="Estado">
+        <select class="sel status-sel ${g.status ? 'on st-' + g.status : ''}" aria-label="Estado">
           <option value="">-Estado-</option>
           ${STATUSES.map(([k, l]) => `<option value="${k}" ${g.status === k ? 'selected' : ''}>${l}</option>`).join('')}
         </select>
@@ -125,12 +131,13 @@
       const shown = all.filter(matches);
       const done = all.filter(isDone).length;
       const pct = all.length ? Math.round(done / all.length * 100) : 0;
-      return `<section class="col" data-child="${ch.id}" style="--c:${childColor(ch, i)}">
-        <div class="col-head"><input class="col-name" value="${esc(ch.name)}" aria-label="Nombre" maxlength="30"><button class="icon ghost" data-act="edit-child" title="Editar ficha" aria-label="Editar ficha">✏️</button></div>
+      const min = collapsed.has(ch.id);
+      return `<section class="col ${min ? 'collapsed' : ''}" data-child="${ch.id}" style="--c:${childColor(ch, i)}">
+        <div class="col-head"><button class="icon ghost chev" data-act="toggle-col" title="${min ? 'Mostrar regalos' : 'Minimizar'}" aria-label="${min ? 'Mostrar regalos' : 'Minimizar'}" aria-expanded="${!min}">${min ? '▸' : '▾'}</button><input class="col-name" value="${esc(ch.name)}" aria-label="Nombre" maxlength="30"><button class="icon ghost" data-act="edit-child" title="Editar ficha" aria-label="Editar ficha">✏️</button></div>
         <div class="stats">${all.length} ${all.length === 1 ? 'regalo' : 'regalos'} · ${all.filter(isBought).length} comprados · ${done} listos</div>
         <div class="bar"><i style="width:${pct}%"></i></div>
-        ${shown.length ? shown.map(giftHtml).join('') : `<div class="empty">${all.length ? 'Nada con este filtro' : 'Aún no hay regalos'}</div>`}
-        <button class="add" data-act="add">＋ Añadir regalo</button>
+        ${min ? '' : `${shown.length ? shown.map(giftHtml).join('') : `<div class="empty">${all.length ? 'Nada con este filtro' : 'Aún no hay regalos'}</div>`}
+        <button class="add" data-act="add">＋ Añadir regalo</button>`}
       </section>`;
     }).join('');
   }
@@ -155,6 +162,10 @@
     const act = btn.dataset.act;
     if (act === 'add') return openGift(childId, null);
     if (act === 'edit-child') return openChild(childId);
+    if (act === 'toggle-col') {
+      collapsed.has(childId) ? collapsed.delete(childId) : collapsed.add(childId);
+      saveCollapsed(); return render();
+    }
     const g = state.gifts.find(x => x.id === gEl.dataset.id);
     if (act === 'edit') return openGift(childId, g);
   });
@@ -208,8 +219,11 @@
       form.name.value = g.name; form.store.value = g.store || ''; form.link.value = g.link || '';
       form.notes.value = g.notes || ''; form.status.value = g.status || '';
     }
+    paintStatus();
     renderPick(); dlg.showModal();
   }
+  const paintStatus = () => { form.status.className = 'sel' + (form.status.value ? ' on st-' + form.status.value : ''); };
+  form.status.addEventListener('change', paintStatus);
   $('#gift-cancel').onclick = () => dlg.close();
   $('#gift-delete').onclick = () => {
     const g = state.gifts.find(x => x.id === editing.giftId);
