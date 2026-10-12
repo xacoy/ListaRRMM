@@ -4,7 +4,7 @@
   const $ = s => document.querySelector(s);
 
   const defaults = () => ({
-    children: [{ id: 'iris', name: 'Iris' }, { id: 'laia', name: 'Laia' }],
+    children: [{ id: uid(), name: 'Niño 1' }, { id: uid(), name: 'Niño 2' }],
     categories: [
       { id: 'juguetes', name: 'Juguetes', color: '#e5484d' },
       { id: 'ropa', name: 'Ropa', color: '#8e4ec6' },
@@ -76,7 +76,7 @@
       const done = all.filter(isDone).length;
       const pct = all.length ? Math.round(done / all.length * 100) : 0;
       return `<section class="col" data-child="${ch.id}">
-        <div class="col-head"><input class="col-name" value="${esc(ch.name)}" aria-label="Nombre" maxlength="30"></div>
+        <div class="col-head"><input class="col-name" value="${esc(ch.name)}" aria-label="Nombre" maxlength="30"><button class="icon ghost" data-act="del-child" title="Eliminar ficha">🗑️</button></div>
         <div class="stats">${all.length} ${all.length === 1 ? "regalo" : "regalos"} · ${all.filter(g => g.bought).length} comprados · ${done} listos</div>
         <div class="bar"><i style="width:${pct}%"></i></div>
         ${shown.length ? shown.map(giftHtml).join('') : `<div class="empty">${all.length ? 'Nada con este filtro' : 'Aún no hay regalos'}</div>`}
@@ -104,6 +104,16 @@
     const gEl = btn.closest('.gift');
     const act = btn.dataset.act;
     if (act === 'add') return openGift(childId, null);
+    if (act === 'del-child') {
+      const ch = state.children.find(c => c.id === childId);
+      const owned = state.gifts.filter(g => g.child === childId);
+      if (owned.length && !confirm(`¿Eliminar la ficha de ${ch.name} y sus ${owned.length} regalos?`)) return;
+      const idx = state.children.indexOf(ch);
+      state.children.splice(idx, 1);
+      state.gifts = state.gifts.filter(g => g.child !== childId);
+      save(); render();
+      return toast('Ficha eliminada', () => { state.children.splice(idx, 0, ch); state.gifts.push(...owned); save(); render(); });
+    }
     const g = state.gifts.find(x => x.id === gEl.dataset.id);
     if (act === 'edit') return openGift(childId, g);
     if (act === 'del') {
@@ -205,6 +215,12 @@
       if (!confirm('Esto reemplaza la lista actual. ¿Continuar?')) return;
       state = d; save(); render();
     } catch { alert('Archivo no válido'); }
+  };
+
+  $('#btn-child').onclick = () => {
+    state.children.push({ id: uid(), name: 'Niño ' + (state.children.length + 1) });
+    save(); render();
+    document.querySelector('.col:last-child .col-name').select();
   };
 
   render();
