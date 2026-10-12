@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lista de Reyes</title>
 <script>try{if(localStorage.getItem("lista-reyes-theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 <header class="top">
@@ -49,7 +49,7 @@
     <label>Notas <input name="notes" maxlength="200"></label>
     <fieldset><legend>Categorías</legend><div id="gift-cats" class="chips"></div></fieldset>
     <label>Estado <select name="status" class="sel">
-      <option value="">Seleccionar estado</option>
+      <option value="">-Estado-</option>
       <option value="idea">💡 Idea</option>
       <option value="store">🏬 Comprado en tienda</option>
       <option value="online">🌐 Comprado online</option>
@@ -75,6 +75,6 @@
 </dialog>
 
 <div id="toast" class="toast" hidden></div>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

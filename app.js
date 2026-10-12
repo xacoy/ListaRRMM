@@ -100,12 +100,12 @@
         <details class="catsel" data-g="${g.id}" ${openCat === g.id ? 'open' : ''}>
           <summary class="sel ${cats.length ? 'has' : ''}">${cats.length
             ? cats.map(c => `<span class="pill" style="background:${c.color};color:${ink(c.color)}">${esc(c.name)}</span>`).join('')
-            : '<span class="ph">Seleccionar categoría</span>'}</summary>
+            : '<span class="ph">-Categoría-</span>'}</summary>
           <div class="panel">${live(state.categories).map(c =>
             `<label><input type="checkbox" class="catcb" data-cat="${c.id}" ${g.cats.includes(c.id) ? 'checked' : ''}><i style="background:${c.color}"></i>${esc(c.name)}</label>`).join('')}</div>
         </details>
         <select class="sel status-sel ${g.status ? 'on' : ''}" aria-label="Estado">
-          <option value="">Seleccionar estado</option>
+          <option value="">-Estado-</option>
           ${STATUSES.map(([k, l]) => `<option value="${k}" ${g.status === k ? 'selected' : ''}>${l}</option>`).join('')}
         </select>
       </div></div>`;
