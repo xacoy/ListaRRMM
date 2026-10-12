@@ -2,7 +2,7 @@
   const KEY = 'lista-reyes-v1';
   const SYNC_KEY = 'lista-reyes-sync';
   // URL de la Realtime Database de Firebase (sin barra final), p. ej. https://xxxx-default-rtdb.europe-west1.firebasedatabase.app
-  const DB = '';
+  const DB = 'https://listarrmm-default-rtdb.europe-west1.firebasedatabase.app';
   const listUrl = id => `${DB}/listas/${id}.json`;
   const POLL_MS = 6000;
   const uid = () => Math.random().toString(36).slice(2, 10);
