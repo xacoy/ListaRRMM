@@ -115,16 +115,24 @@
     return `<button type="button" class="chip ${on ? 'on' : ''}" ${attrs} style="--cc:${c.color};--ink:${ink(c.color)}" aria-pressed="${on}">${on ? '✓ ' : ''}${esc(c.name)}</button>`;
   }
 
-  // --- Piezas de un regalo (comunes a la tarjeta de niño y a la fila de familia) ---
+  // --- Iconos (SVG de trazo fino, a juego con el estilo suave) ---
+  const svg = p => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+  const ICON = {
+    edit: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
+    chev: svg('<path d="m6 9 6 6 6-6"/>')
+  };
+  const editBtn = (act, label, sm) => `<button class="ibtn ${sm ? 'sm' : ''}" data-act="${act}" title="${label}" aria-label="${label}">${ICON.edit}</button>`;
+
+  // --- Piezas de un regalo ---
   function metaHtml(g) {
     const buyer = g.buyer && live(state.buyers).find(b => b.id === g.buyer);
     const link = g.link ? ` · <a href="${esc(g.link)}" target="_blank" rel="noopener">enlace</a>` : '';
     const meta = [g.store ? '🛒 ' + esc(g.store) : '', buyer ? '🛍️ ' + esc(buyer.name) : '', g.notes ? esc(g.notes) : ''].filter(Boolean).join(' · ');
     return meta || link ? `<div class="gmeta">${meta}${link}</div>` : '';
   }
-  function catsHtml(g, compact) {
+  function catsHtml(g) {
     const cats = g.cats.map(cat).filter(Boolean);
-    return `<details class="catsel ${compact ? 'compact' : ''}" data-g="${g.id}" ${openCat === g.id ? 'open' : ''}>
+    return `<details class="catsel" data-g="${g.id}" ${openCat === g.id ? 'open' : ''}>
       <summary class="sel ${cats.length ? 'has' : ''}">${cats.length
         ? cats.map(c => `<span class="pill" style="background:${c.color};color:${ink(c.color)}">${esc(c.name)}</span>`).join('')
         : '<span class="ph">-Categoría-</span>'}</summary>
@@ -137,34 +145,23 @@
       ${STATUSES.map(([k, l]) => `<option value="${k}" ${g.status === k ? 'selected' : ''}>${l}</option>`).join('')}
     </select>`;
 
-  // Tarjeta completa (niños)
-  function giftHtml(g) {
-    const color = g.cats.map(cat).filter(Boolean)[0]?.color || 'var(--accent)';
-    return `<div class="gift ${isDone(g) ? 'done' : ''}" style="border-left-color:${color}" data-id="${g.id}">
-      <div class="ghead">
-        <div class="gname">${esc(g.name)}</div>
-        <button class="icon ghost" data-act="edit" title="Editar">✏️</button>
-      </div>
+  // Un solo diseño de regalo: tarjeta (niños) o fila sin caja (dentro de una persona de familia).
+  function giftHtml(g, flat) {
+    return `<div class="gift ${flat ? 'flat' : ''} ${isDone(g) ? 'done' : ''}" data-id="${g.id}">
+      <div class="ghead"><div class="gname">${esc(g.name)}</div>${editBtn('edit', 'Editar regalo', true)}</div>
       ${metaHtml(g)}
       <div class="controls">${catsHtml(g)}${statusHtml(g)}</div></div>`;
   }
-  // Fila compacta (familias)
-  function rowHtml(g) {
-    const color = g.cats.map(cat).filter(Boolean)[0]?.color || 'var(--c)';
-    return `<div class="grow ${isDone(g) ? 'done' : ''}" style="--g:${color}" data-id="${g.id}">
-      <div class="t">
-        <div class="n"><span class="nm">${esc(g.name)}</span><button class="icon ghost mini" data-act="edit" title="Editar" aria-label="Editar regalo">✏️</button></div>
-        ${catsHtml(g, true)}${metaHtml(g)}
-      </div>${statusHtml(g)}</div>`;
-  }
 
-  const chev = (id, min) => `<button class="icon ghost chev" data-act="toggle-col" title="${min ? 'Mostrar' : 'Minimizar'}" aria-label="${min ? 'Mostrar' : 'Minimizar'}" aria-expanded="${!min}">${min ? '▸' : '▾'}</button>`;
-  const banner = (all, extra, color) => {
-    const done = all.filter(isDone).length;
+  const head = (id, min, name, editAct, editLabel) =>
+    `<div class="col-head"><button class="ibtn chev ${min ? 'closed' : ''}" data-act="toggle-col" title="${min ? 'Mostrar' : 'Minimizar'}" aria-label="${min ? 'Mostrar' : 'Minimizar'}" aria-expanded="${!min}">${ICON.chev}</button><button class="col-title" data-act="toggle-col">${esc(name)}</button>${editBtn(editAct, editLabel)}</div>`;
+  const banner = (all, extra) => {
+    const done = all.filter(isDone).length, bought = all.filter(isBought).length;
     const pct = all.length ? Math.round(done / all.length * 100) : 0;
-    return `<div class="stats">${extra}${plural(all.length, 'regalo', 'regalos')} · ${plural(all.filter(isBought).length, 'comprado', 'comprados')} · ${plural(done, 'listo', 'listos')}</div>
+    return `<div class="stats">${extra ? `<span class="sp">${extra}</span>` : ''}<span class="sp">${plural(all.length, 'regalo', 'regalos')}</span><span class="sp">${plural(bought, 'comprado', 'comprados')}</span><span class="sp ok" title="Listos: ya comprados en tienda o recibidos">${plural(done, 'listo', 'listos')}</span></div>
         <div class="bar"><i style="width:${pct}%"></i></div>`;
   };
+  const sec = (title, act, label) => `<div class="sec"><h2>${title}</h2><button class="addsec" data-act="${act}">${label}</button></div>`;
 
   function render() {
     needRender = false;
@@ -173,16 +170,18 @@
     fc.innerHTML = '<option value="">Todas las categorías</option>' +
       cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
     fc.value = cats.some(c => c.id === cur) ? cur : '';
+    updateFilterBtn();
 
     const gifts = live(state.gifts);
+    $('#tip').hidden = tipDone() || gifts.length > 0;
     const kids = live(state.children).map((ch, i) => {
       const all = gifts.filter(g => g.child === ch.id);
       const shown = all.filter(matches);
       const min = collapsed.has(ch.id);
       return `<section class="col ${min ? 'collapsed' : ''}" data-child="${ch.id}" style="--c:${colorOf(ch, i)}">
-        <div class="col-head">${chev(ch.id, min)}<input class="col-name" value="${esc(ch.name)}" aria-label="Nombre" maxlength="30"><button class="icon ghost" data-act="edit-child" title="Editar ficha" aria-label="Editar ficha">✏️</button></div>
+        ${head(ch.id, min, ch.name, 'edit-child', 'Editar ficha')}
         ${banner(all, '')}
-        ${min ? '' : `${shown.length ? shown.map(giftHtml).join('') : `<div class="empty">${all.length ? 'Nada con este filtro' : 'Aún no hay regalos'}</div>`}
+        ${min ? '' : `${shown.length ? shown.map(g => giftHtml(g)).join('') : `<div class="empty">${all.length ? 'Nada con este filtro' : 'Aún no hay regalos'}</div>`}
         <button class="add" data-act="add">＋ Añadir regalo</button>`}
       </section>`;
     });
@@ -196,20 +195,34 @@
       const body = members.map(p => {
         const mine = all.filter(g => g.child === p.id), shown = mine.filter(matches);
         return `<div class="person" data-person="${p.id}">
-          <div class="pname"><span>${esc(p.name)}</span><small>${plural(mine.length, 'regalo', 'regalos')}</small><button class="icon ghost" data-act="edit-person" title="Editar persona" aria-label="Editar persona">✏️</button></div>
-          ${shown.map(rowHtml).join('')}
+          <div class="pname"><span>${esc(p.name)}</span><small>${plural(mine.length, 'regalo', 'regalos')}</small>${editBtn('edit-person', 'Editar persona', true)}</div>
+          ${shown.map(g => giftHtml(g, true)).join('')}
           <button class="linkbtn" data-act="add">＋ Añadir regalo</button>
         </div>`;
       }).join('');
       return `<section class="col fam ${min ? 'collapsed' : ''}" data-family="${f.id}" style="--c:${colorOf(f, i + 4)}">
-        <div class="col-head">${chev(f.id, min)}<input class="col-name" value="${esc(f.name)}" aria-label="Nombre" maxlength="30"><button class="icon ghost" data-act="edit-family" title="Editar familia" aria-label="Editar familia">✏️</button></div>
-        ${banner(all, plural(members.length, 'persona', 'personas') + ' · ')}
-        ${min ? '' : `${body || '<div class="empty">Añade a las personas de esta familia</div>'}
+        ${head(f.id, min, f.name, 'edit-family', 'Editar familia')}
+        ${banner(all, plural(members.length, 'persona', 'personas'))}
+        ${min ? '' : `${body ? `<div class="people">${body}</div>` : '<div class="empty">Añade a las personas de esta familia</div>'}
         <button class="add" data-act="add-person">＋ Añadir persona</button>`}
       </section>`;
     });
-    $('#board').innerHTML = kids.concat(fams).join('');
+    $('#board').innerHTML = sec('Niños', 'add-child', '＋ Niño') + kids.join('') + sec('Familias', 'add-family', '＋ Familia') + fams.join('');
   }
+
+  // --- Aviso de primera vez (solo en este dispositivo) ---
+  const TIP_KEY = 'lista-reyes-tip';
+  const tipDone = () => { try { return !!localStorage.getItem(TIP_KEY); } catch { return false; } };
+  $('#tip-ok').onclick = () => { try { localStorage.setItem(TIP_KEY, '1'); } catch {} $('#tip').hidden = true; };
+
+  // --- Filtros plegables ---
+  const filtersEl = $('#filters'), filterBtn = $('#btn-filter');
+  function updateFilterBtn() {
+    const n = ($('#f-status').value ? 1 : 0) + ($('#f-cat').value ? 1 : 0);
+    filterBtn.classList.toggle('active', n > 0);
+    $('#filter-count').textContent = n || '';
+  }
+  filterBtn.onclick = () => { filtersEl.hidden = !filtersEl.hidden; filterBtn.setAttribute('aria-expanded', !filtersEl.hidden); };
 
   // --- Toast con deshacer ---
   let toastTimer;
@@ -226,10 +239,12 @@
   $('#board').addEventListener('click', e => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
+    const act = btn.dataset.act;
+    if (act === 'add-child') return addChild();
+    if (act === 'add-family') return addFamily();
     const col = btn.closest('.col');
     const colId = col.dataset.child || col.dataset.family;
     const personId = btn.closest('.person')?.dataset.person;
-    const act = btn.dataset.act;
     if (act === 'toggle-col') {
       collapsed.has(colId) ? collapsed.delete(colId) : collapsed.add(colId);
       saveCollapsed(); return render();
@@ -256,22 +271,15 @@
   }, true);
   $('#board').addEventListener('change', e => {
     const gEl = e.target.closest('[data-id]');
-    if (gEl && (e.target.classList.contains('status-sel') || e.target.classList.contains('catcb'))) {
-      const g = state.gifts.find(x => x.id === gEl.dataset.id);
-      if (e.target.classList.contains('status-sel')) g.status = e.target.value;
-      else {
-        const id = e.target.dataset.cat;
-        g.cats = e.target.checked ? [...new Set([...g.cats, id])] : g.cats.filter(x => x !== id);
-        openCat = g.id;
-      }
-      touch(g); save(); return render();
-    }
-    if (!e.target.classList.contains('col-name')) return;
-    const col = e.target.closest('.col');
-    const item = col.dataset.child
-      ? state.children.find(c => c.id === col.dataset.child)
-      : state.families.find(f => f.id === col.dataset.family);
-    item.name = e.target.value.trim() || item.name; touch(item); save(); render();
+    if (!gEl) return;
+    const g = state.gifts.find(x => x.id === gEl.dataset.id);
+    if (e.target.classList.contains('status-sel')) g.status = e.target.value;
+    else if (e.target.classList.contains('catcb')) {
+      const id = e.target.dataset.cat;
+      g.cats = e.target.checked ? [...new Set([...g.cats, id])] : g.cats.filter(x => x !== id);
+      openCat = g.id;
+    } else return;
+    touch(g); save(); render();
   });
   $('#f-status').onchange = $('#f-cat').onchange = render;
 
@@ -287,17 +295,24 @@
     pickedCats.has(c.dataset.id) ? pickedCats.delete(c.dataset.id) : pickedCats.add(c.dataset.id);
     renderPick();
   });
+  function fillBuyers(val) {
+    form.buyer.innerHTML = '<option value="">-Lo compra-</option>' +
+      live(state.buyers).map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('');
+    form.buyer.value = val;
+  }
+  const buyersUnedited = () => live(state.buyers).every(b => (b.u || 0) <= 1);
   function openGift(ownerId, g) {
     editing = { ownerId, giftId: g?.id || null };
     pickedCats = new Set(g?.cats || []);
     $('#gift-title').textContent = g ? 'Editar regalo' : 'Nuevo regalo para ' + ownerName(ownerId);
     form.reset();
-    form.buyer.innerHTML = '<option value="">-Lo compra-</option>' +
-      live(state.buyers).map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('');
+    fillBuyers(g?.buyer || '');
+    $('#buyer-names').hidden = !buyersUnedited();
+    $('#more').open = !!(g && (g.store || g.link || g.notes));
     $('#gift-delete').hidden = !g;
     if (g) {
       form.name.value = g.name; form.store.value = g.store || ''; form.link.value = g.link || '';
-      form.notes.value = g.notes || ''; form.status.value = g.status || ''; form.buyer.value = g.buyer || '';
+      form.notes.value = g.notes || ''; form.status.value = g.status || '';
     }
     paintStatus();
     renderPick(); dlg.showModal();
@@ -414,7 +429,11 @@
   }
   $('#btn-buyers').onclick = () => { renderBuyers(); db.showModal(); };
   $('#buyers-close').onclick = () => db.close();
-  db.addEventListener('close', render);
+  db.addEventListener('close', () => {
+    if (dlg.open) { fillBuyers(form.buyer.value); $('#buyer-names').hidden = !buyersUnedited(); }
+    render();
+  });
+  $('#buyer-names').onclick = () => { renderBuyers(); db.showModal(); };
   $('#buyer-list').addEventListener('input', e => {
     const b = state.buyers.find(x => x.id === e.target.dataset.id);
     if (!b || !e.target.value.trim()) return;
@@ -442,18 +461,18 @@
   };
   applyTheme(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
 
-  $('#btn-child').onclick = () => {
+  function addChild() {
     const n = live(state.children).length;
-    state.children.push(mk({ id: uid(), name: 'Niño ' + (n + 1), color: PALETTE[n % PALETTE.length] }));
-    save(); render();
-    document.querySelector('.col[data-child]:last-of-type .col-name')?.select();
-  };
-  $('#btn-family').onclick = () => {
+    const ch = mk({ id: uid(), name: 'Niño ' + (n + 1), color: PALETTE[n % PALETTE.length] });
+    state.children.push(ch); save(); render();
+    openOwner('child', ch.id);
+  }
+  function addFamily() {
     const n = live(state.families).length;
     const f = mk({ id: uid(), name: 'Familia ' + (n + 1), color: PALETTE[(n + 4) % PALETTE.length] });
     state.families.push(f); save(); render();
     openOwner('family', f.id);
-  };
+  }
 
   // --- Exportar / importar ---
   $('#btn-export').onclick = () => {
@@ -515,7 +534,7 @@
 
   function canRender() {
     const a = document.activeElement;
-    return !(a && a.classList.contains('col-name'));
+    return !(a && a.classList.contains('status-sel'));
   }
 
   const headers = { 'Content-Type': 'application/json' };

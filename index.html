@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lista de Reyes</title>
 <script>try{if(localStorage.getItem("lista-reyes-theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 <header class="top">
@@ -13,22 +13,29 @@
     <h1>👑 Lista de Reyes</h1>
     <div id="sync-status" class="sync"></div>
   </div>
-  <div class="menu">
-    <button id="btn-menu" class="ghost" aria-haspopup="true" aria-expanded="false">☰ Menú</button>
-    <div id="menu-panel" class="menu-panel" hidden>
-      <button id="btn-share">🔗 Compartir</button>
-      <button id="btn-child">➕ Añadir niño</button>
-      <button id="btn-family">👪 Añadir familia</button>
-      <button id="btn-cats">🏷️ Categorías</button>
-      <button id="btn-buyers">👥 Quién compra</button>
-      <button id="btn-export">⬇️ Exportar</button>
-      <label class="btn">⬆️ Importar<input id="file-import" type="file" accept="application/json" hidden></label>
-      <button id="btn-theme">🌙 Tema oscuro</button>
+  <div class="top-actions">
+    <button id="btn-filter" class="pillbtn" aria-expanded="false" title="Filtrar regalos">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>
+      <span class="lbl">Filtrar</span><span id="filter-count" class="cnt"></span>
+    </button>
+    <div class="menu">
+      <button id="btn-menu" class="pillbtn" aria-haspopup="true" aria-expanded="false">☰ Menú</button>
+      <div id="menu-panel" class="menu-panel" hidden>
+        <button id="btn-share">🔗 Compartir</button>
+        <hr>
+        <button id="btn-cats">🏷️ Categorías</button>
+        <button id="btn-buyers">👥 Quién compra</button>
+        <hr>
+        <button id="btn-export">⬇️ Exportar copia</button>
+        <label class="btn">⬆️ Importar copia<input id="file-import" type="file" accept="application/json" hidden></label>
+        <hr>
+        <button id="btn-theme">🌙 Tema oscuro</button>
+      </div>
     </div>
   </div>
 </header>
 
-<div class="filters">
+<div id="filters" class="filters" hidden>
   <select id="f-status" aria-label="Estado">
     <option value="">Todos los estados</option>
     <option value="none">Sin estado</option>
@@ -40,24 +47,35 @@
   <select id="f-cat" aria-label="Categoría"></select>
 </div>
 
+<div id="tip" class="tip" hidden>
+  <span>👋 Toca el lápiz de cada ficha para ponerle nombre. En <b>☰ Menú → Quién compra</b> pones vuestros nombres.</span>
+  <button id="tip-ok" class="ghost">Entendido</button>
+</div>
+
 <main id="board" class="board"></main>
 
 <dialog id="dlg-gift">
   <form method="dialog" id="form-gift">
     <h2 id="gift-title">Nuevo regalo</h2>
     <label>Regalo <input name="name" required maxlength="120"></label>
-    <label>Tienda <input name="store" maxlength="80" placeholder="Amazon, El Corte Inglés…"></label>
-    <label>Enlace (opcional) <input name="link" type="url" placeholder="https://…"></label>
-    <label>Notas <input name="notes" maxlength="200"></label>
     <fieldset><legend>Categorías</legend><div id="gift-cats" class="chips"></div></fieldset>
-    <label>Estado <select name="status" class="sel">
-      <option value="">-Estado-</option>
-      <option value="idea">💡 Idea</option>
-      <option value="store">🏬 Comprado en tienda</option>
-      <option value="online">🌐 Comprado online</option>
-      <option value="received">📦 Recibido</option>
-    </select></label>
-    <label>Lo compra <select name="buyer" class="sel"></select></label>
+    <div class="two">
+      <label>Estado <select name="status" class="sel">
+        <option value="">-Estado-</option>
+        <option value="idea">💡 Idea</option>
+        <option value="store">🏬 Comprado en tienda</option>
+        <option value="online">🌐 Comprado online</option>
+        <option value="received">📦 Recibido</option>
+      </select></label>
+      <label>Lo compra <select name="buyer" class="sel"></select></label>
+    </div>
+    <button type="button" id="buyer-names" class="linkbtn" hidden>¿Cómo os llamáis? Poner nombres</button>
+    <details id="more" class="more">
+      <summary>Más detalles (tienda, enlace, notas)</summary>
+      <label>Tienda <input name="store" maxlength="80" placeholder="Amazon, El Corte Inglés…"></label>
+      <label>Enlace <input name="link" type="url" placeholder="https://…"></label>
+      <label>Notas <input name="notes" maxlength="200"></label>
+    </details>
     <div class="row">
       <button type="button" id="gift-delete" class="danger" hidden>🗑️ Eliminar</button>
       <button type="button" id="gift-cancel" class="ghost">Cancelar</button>
@@ -98,6 +116,6 @@
 </dialog>
 
 <div id="toast" class="toast" hidden></div>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>
