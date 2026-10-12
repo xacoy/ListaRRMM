@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lista de Reyes</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1>👑 Lista de Reyes</h1>
+  <div class="actions">
+    <button id="btn-cats" class="ghost">🏷️ Categorías</button>
+    <button id="btn-export" class="ghost">⬇️ Exportar</button>
+    <label class="ghost btn">⬆️ Importar<input id="file-import" type="file" accept="application/json" hidden></label>
+  </div>
+</header>
+
+<div class="filters">
+  <select id="f-status" aria-label="Estado">
+    <option value="">Todos los estados</option>
+    <option value="pending">Pendiente de comprar</option>
+    <option value="bought">Comprado</option>
+    <option value="transit">Comprado online, sin llegar</option>
+    <option value="done">Listo (comprado y en casa)</option>
+  </select>
+  <select id="f-cat" aria-label="Categoría"></select>
+</div>
+
+<main id="board" class="board"></main>
+
+<dialog id="dlg-gift">
+  <form method="dialog" id="form-gift">
+    <h2 id="gift-title">Nuevo regalo</h2>
+    <label>Regalo <input name="name" required maxlength="120"></label>
+    <label>Tienda <input name="store" maxlength="80" placeholder="Amazon, El Corte Inglés…"></label>
+    <label>Enlace (opcional) <input name="link" type="url" placeholder="https://…"></label>
+    <label>Notas <input name="notes" maxlength="200"></label>
+    <fieldset><legend>Categorías</legend><div id="gift-cats" class="chips"></div></fieldset>
+    <div class="checks">
+      <label><input type="checkbox" name="bought"> Comprado</label>
+      <label><input type="checkbox" name="online"> Compra online</label>
+      <label><input type="checkbox" name="arrived"> Ya ha llegado</label>
+    </div>
+    <div class="row">
+      <button type="button" id="gift-cancel" class="ghost">Cancelar</button>
+      <button type="submit" class="primary">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-cats">
+  <h2>Categorías</h2>
+  <div id="cat-list"></div>
+  <form id="form-cat" class="catform">
+    <input name="name" placeholder="Nueva categoría" required maxlength="30">
+    <input name="color" type="color" value="#7c5cff" aria-label="Color">
+    <button class="primary">Añadir</button>
+  </form>
+  <div class="row"><button id="cats-close" class="ghost">Cerrar</button></div>
+</dialog>
+
+<div id="toast" class="toast" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
