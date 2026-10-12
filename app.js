@@ -6,7 +6,10 @@
   const listUrl = id => `${DB}/listas/${id}.json`;
   const POLL_MS = 6000;
   const uid = () => Math.random().toString(36).slice(2, 10);
-  const now = () => Date.now();
+  // Reloj híbrido: nunca va por detrás de lo ya visto, así un reloj atrasado no hace perder cambios.
+  let clock = 0;
+  const now = () => (clock = Math.max(Date.now(), clock + 1));
+  const seen = s => ['children', 'categories', 'gifts'].forEach(k => s[k].forEach(i => { if (i.u > clock) clock = i.u; }));
   const $ = s => document.querySelector(s);
 
   const PALETTE = ['#e5484d', '#0090ff', '#30a46c', '#f5a524', '#8e4ec6', '#e93d82', '#12a594', '#f76b15'];
@@ -28,16 +31,21 @@
     gifts: []
   });
 
+  // Estado único del regalo. Los datos antiguos (bought/online/arrived) se convierten al leerlos.
+  const STATUSES = [['idea', '💡 Idea'], ['store', '🏬 Comprado en tienda'], ['online', '🌐 Comprado online'], ['received', '📦 Recibido']];
+  const statusOf = g => g.status || (!g.bought ? 'idea' : !g.online ? 'store' : g.arrived ? 'received' : 'online');
+
   const normalize = d => ({
     children: Array.isArray(d?.children) ? d.children : [],
     categories: Array.isArray(d?.categories) ? d.categories : [],
     // Firebase no guarda arrays vacíos, así que cats puede venir sin definir.
-    gifts: (Array.isArray(d?.gifts) ? d.gifts : []).map(g => ({ ...g, cats: g.cats || [] }))
+    gifts: (Array.isArray(d?.gifts) ? d.gifts : []).map(g => ({ ...g, cats: g.cats || [], status: statusOf(g) }))
   });
 
   let state;
   try { state = normalize(JSON.parse(localStorage.getItem(KEY))); } catch { state = normalize(null); }
   if (!state.children.length && !state.categories.length && !state.gifts.length) state = defaults();
+  seen(state);
 
   const live = a => a.filter(x => !x.del);
   const touch = x => { x.u = now(); return x; };
@@ -50,16 +58,13 @@
 
   function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
 
-  function isDone(g) { return g.bought && (!g.online || g.arrived); }
+  const isBought = g => g.status !== 'idea';
+  const isDone = g => g.status === 'store' || g.status === 'received';
 
   function matches(g) {
     const st = $('#f-status').value, c = $('#f-cat').value;
     if (c && !g.cats.includes(c)) return false;
-    if (st === 'pending') return !g.bought;
-    if (st === 'bought') return g.bought;
-    if (st === 'transit') return g.bought && g.online && !g.arrived;
-    if (st === 'done') return isDone(g);
-    return true;
+    return !st || g.status === st;
   }
 
   function chipHtml(c) {
@@ -71,8 +76,6 @@
     const color = cats[0]?.color || 'var(--accent)';
     const link = g.link ? ` · <a href="${esc(g.link)}" target="_blank" rel="noopener">enlace</a>` : '';
     const meta = [g.store ? '🛒 ' + esc(g.store) : '', g.notes ? esc(g.notes) : ''].filter(Boolean).join(' · ');
-    const arrivedBtn = g.bought && g.online
-      ? `<button class="tg wait ${g.arrived ? 'on' : ''}" data-act="arrived">${g.arrived ? '📦 Ha llegado' : '🚚 En camino'}</button>` : '';
     return `<div class="gift ${isDone(g) ? 'done' : ''}" style="border-left-color:${color}" data-id="${g.id}">
       <div class="ghead">
         <div class="gname">${esc(g.name)}</div>
@@ -81,11 +84,8 @@
       </div>
       ${meta || link ? `<div class="gmeta">${meta}${link}</div>` : ''}
       ${cats.length ? `<div class="chips">${cats.map(chipHtml).join('')}</div>` : ''}
-      <div class="toggles">
-        <button class="tg ${g.bought ? 'on' : ''}" data-act="bought">${g.bought ? '✅ Comprado' : '⬜ Sin comprar'}</button>
-        <button class="tg ${g.online ? 'on' : ''}" data-act="online">${g.online ? '🌐 Online' : '🏬 En tienda'}</button>
-        ${arrivedBtn}
-      </div></div>`;
+      <div class="toggles">${STATUSES.map(([k, l]) =>
+        `<button class="tg ${g.status === k ? 'on' : ''}" data-act="status" data-status="${k}">${l}</button>`).join('')}</div></div>`;
   }
 
   function render() {
@@ -104,7 +104,7 @@
       const pct = all.length ? Math.round(done / all.length * 100) : 0;
       return `<section class="col" data-child="${ch.id}" style="--c:${childColor(ch, i)}">
         <div class="col-head"><input class="col-name" value="${esc(ch.name)}" aria-label="Nombre" maxlength="30"><input type="color" class="col-color" value="${childColor(ch, i)}" title="Color de la ficha" aria-label="Color de la ficha"><button class="icon ghost" data-act="del-child" title="Eliminar ficha">🗑️</button></div>
-        <div class="stats">${all.length} ${all.length === 1 ? 'regalo' : 'regalos'} · ${all.filter(g => g.bought).length} comprados · ${done} listos</div>
+        <div class="stats">${all.length} ${all.length === 1 ? 'regalo' : 'regalos'} · ${all.filter(isBought).length} comprados · ${done} listos</div>
         <div class="bar"><i style="width:${pct}%"></i></div>
         ${shown.length ? shown.map(giftHtml).join('') : `<div class="empty">${all.length ? 'Nada con este filtro' : 'Aún no hay regalos'}</div>`}
         <button class="add" data-act="add">＋ Añadir regalo</button>
@@ -145,9 +145,7 @@
       g.del = true; touch(g); save(); render();
       return toast('Regalo borrado', () => { g.del = false; touch(g); save(); render(); });
     }
-    if (act === 'bought') { g.bought = !g.bought; if (!g.bought) g.arrived = false; }
-    if (act === 'online') { g.online = !g.online; if (!g.online) g.arrived = false; }
-    if (act === 'arrived') g.arrived = !g.arrived;
+    if (act === 'status') g.status = btn.dataset.status;
     touch(g); save(); render();
   });
   $('#board').addEventListener('change', e => {
@@ -178,7 +176,7 @@
     form.reset();
     if (g) {
       form.name.value = g.name; form.store.value = g.store || ''; form.link.value = g.link || '';
-      form.notes.value = g.notes || ''; form.bought.checked = g.bought; form.online.checked = g.online; form.arrived.checked = g.arrived;
+      form.notes.value = g.notes || ''; form.status.value = g.status;
     }
     renderPick(); dlg.showModal();
   }
@@ -187,10 +185,9 @@
     e.preventDefault();
     const data = {
       name: form.name.value.trim(), store: form.store.value.trim(), link: form.link.value.trim(), notes: form.notes.value.trim(),
-      bought: form.bought.checked, online: form.online.checked, arrived: form.arrived.checked, cats: [...pickedCats]
+      status: form.status.value, cats: [...pickedCats]
     };
     if (!data.name) return;
-    if (!data.bought || !data.online) data.arrived = false;
     const existing = editing.giftId && state.gifts.find(g => g.id === editing.giftId);
     if (existing) touch(Object.assign(existing, data));
     else state.gifts.push(mk({ id: uid(), child: editing.childId, ...data }));
@@ -254,6 +251,7 @@
         d[k].forEach(x => {
           const i = state[k].findIndex(y => y.id === x.id);
           const item = { ...x, del: false, c: x.c || now(), u: now() };
+          if (k === 'gifts') { item.status = statusOf(x); item.cats = x.cats || []; }
           i >= 0 ? (state[k][i] = item) : state[k].push(item);
         });
       }
@@ -308,6 +306,7 @@
       const r = await fetch(listUrl(syncId), { cache: 'no-store' });
       if (!r.ok) throw new Error('GET ' + r.status);
       const remote = normalize(await r.json());
+      seen(remote);
       const merged = merge(state, remote);
       const changedLocal = sig(merged) !== sig(state);
       const changedRemote = sig(merged) !== sig(remote);
@@ -355,7 +354,7 @@
         const r = await fetch(listUrl(syncId), { cache: 'no-store' });
         if (r.ok) {
           const remote = normalize(await r.json());
-          if (remote.children.length || remote.categories.length) { state = remote; save(); render(); }
+          if (remote.children.length || remote.categories.length) { seen(remote); state = remote; save(); render(); }
         }
       } catch {}
     }

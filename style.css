@@ -34,7 +34,6 @@ select{padding:6px 8px;border-radius:10px;border:1px solid var(--line);backgroun
 .toggles{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .tg{font-size:.8rem;padding:3px 9px;border-radius:999px}
 .tg.on{background:var(--ok);color:#fff;border-color:var(--ok)}
-.tg.wait.on{background:#e9a100;border-color:#e9a100}
 .icon{padding:2px 7px;border-radius:8px}
 .add{width:100%;margin-top:4px;border-style:dashed}
 .empty{color:var(--muted);text-align:center;padding:12px}
@@ -42,7 +41,7 @@ dialog{border:1px solid var(--line);border-radius:16px;background:var(--card);co
 dialog::backdrop{background:#0008}
 dialog h2{margin-top:0}
 dialog label{display:block;margin-bottom:10px;font-size:.9rem;color:var(--muted)}
-dialog input:not([type=checkbox]):not([type=color]){display:block;width:100%;margin-top:3px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+dialog input:not([type=checkbox]):not([type=color]):not([type=radio]){display:block;width:100%;margin-top:3px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
 fieldset{border:1px solid var(--line);border-radius:10px;margin:0 0 10px}
 .checks{display:flex;gap:12px;flex-wrap:wrap}
 .checks label{color:var(--text)}
@@ -59,3 +58,9 @@ input[type=color]{width:42px;height:36px;padding:2px;border:1px solid var(--line
 .sync{font-size:.75rem;font-weight:400;color:var(--muted);margin-left:6px;white-space:nowrap}
 .sync.ok{color:var(--ok)}
 .sync.err{color:#e5484d}
+.states{display:flex;flex-wrap:wrap;gap:6px;padding:6px}
+.states label{margin:0;cursor:pointer;position:relative}
+.states input{position:absolute;opacity:0;pointer-events:none}
+.states span{display:inline-block;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--bg);font-size:.85rem;color:var(--text)}
+.states input:checked+span{background:var(--ok);color:#fff;border-color:var(--ok)}
+.states input:focus-visible+span{outline:2px solid var(--accent)}
