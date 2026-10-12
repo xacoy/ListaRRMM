@@ -85,3 +85,26 @@ input[type=color]{width:42px;height:36px;padding:2px;border:1px solid var(--line
 .chev{flex:none;width:30px;font-size:1rem;line-height:1.2}
 .col.collapsed .stats{margin-bottom:6px}
 .col.collapsed .bar{margin-bottom:0}
+
+[hidden]{display:none!important}
+.hint{color:var(--muted);font-size:.85rem;margin:0 0 10px}
+.fam .person{padding:8px 0;border-top:1px dashed var(--line)}
+.fam .person:first-of-type{border-top:0}
+.pname{display:flex;align-items:center;gap:6px;font-weight:700;margin-bottom:4px}
+.pname small{color:var(--muted);font-weight:400;font-size:.78rem}
+.pname .icon{margin-left:auto}
+.grow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;padding:4px 0 4px 10px;border-left:4px solid var(--g,var(--c))}
+.grow .t{min-width:0}
+.grow .n{display:flex;align-items:center;gap:2px}
+.grow .nm{font-size:.92rem;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grow .mini{border:0;background:transparent;padding:0 4px;font-size:.7rem;opacity:.65}
+.grow .status-sel{width:172px}
+.grow .gmeta{font-size:.75rem;margin-top:1px}
+.grow.done .nm{text-decoration:line-through;opacity:.7}
+.catsel.compact summary.sel{border:0;background:transparent;padding:0;font-size:.75rem;min-height:0}
+.catsel.compact summary::after{display:none}
+.catsel.compact .ph{border:1.5px solid var(--line);border-radius:999px;padding:0 7px;color:var(--muted);font-size:.7rem}
+.catsel.compact .panel{width:200px}
+.linkbtn{border:0;background:transparent;color:var(--muted);font-size:.82rem;padding:2px 0 0 10px}
+.linkbtn:hover{color:var(--text)}
+#buyer-list label{display:block;margin-bottom:10px}

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lista de Reyes</title>
 <script>try{if(localStorage.getItem("lista-reyes-theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 <header class="top">
@@ -18,7 +18,9 @@
     <div id="menu-panel" class="menu-panel" hidden>
       <button id="btn-share">🔗 Compartir</button>
       <button id="btn-child">➕ Añadir niño</button>
+      <button id="btn-family">👪 Añadir familia</button>
       <button id="btn-cats">🏷️ Categorías</button>
+      <button id="btn-buyers">👥 Quién compra</button>
       <button id="btn-export">⬇️ Exportar</button>
       <label class="btn">⬆️ Importar<input id="file-import" type="file" accept="application/json" hidden></label>
       <button id="btn-theme">🌙 Tema oscuro</button>
@@ -55,6 +57,7 @@
       <option value="online">🌐 Comprado online</option>
       <option value="received">📦 Recibido</option>
     </select></label>
+    <label>Lo compra <select name="buyer" class="sel"></select></label>
     <div class="row">
       <button type="button" id="gift-delete" class="danger" hidden>🗑️ Eliminar</button>
       <button type="button" id="gift-cancel" class="ghost">Cancelar</button>
@@ -65,15 +68,22 @@
 
 <dialog id="dlg-child">
   <form id="form-child" method="dialog">
-    <h2>Editar ficha</h2>
+    <h2 id="owner-title">Editar ficha</h2>
     <label>Nombre <input name="name" required maxlength="30"></label>
-    <label>Color <input name="color" type="color" value="#9ccaf5"></label>
+    <label id="owner-color">Color <input name="color" type="color" value="#9ccaf5"></label>
     <div class="row">
       <button type="button" id="child-delete" class="danger">🗑️ Eliminar</button>
       <button type="button" id="child-cancel" class="ghost">Cancelar</button>
       <button type="submit" class="primary">Guardar</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="dlg-buyers">
+  <h2>Quién compra</h2>
+  <p class="hint">Los dos nombres que aparecen en «Lo compra» al editar un regalo.</p>
+  <div id="buyer-list"></div>
+  <div class="row"><button id="buyers-close" class="ghost">Cerrar</button></div>
 </dialog>
 
 <dialog id="dlg-cats">
@@ -88,6 +98,6 @@
 </dialog>
 
 <div id="toast" class="toast" hidden></div>
-<script src="app.js?v=13"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>
