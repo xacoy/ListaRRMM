@@ -1,7 +1,9 @@
 (() => {
   const KEY = 'lista-reyes-v1';
   const SYNC_KEY = 'lista-reyes-sync';
-  const API = 'https://jsonblob.com/api/jsonBlob';
+  // URL de la Realtime Database de Firebase (sin barra final), p. ej. https://xxxx-default-rtdb.europe-west1.firebasedatabase.app
+  const DB = '';
+  const listUrl = id => `${DB}/listas/${id}.json`;
   const POLL_MS = 6000;
   const uid = () => Math.random().toString(36).slice(2, 10);
   const now = () => Date.now();
@@ -29,7 +31,8 @@
   const normalize = d => ({
     children: Array.isArray(d?.children) ? d.children : [],
     categories: Array.isArray(d?.categories) ? d.categories : [],
-    gifts: Array.isArray(d?.gifts) ? d.gifts : []
+    // Firebase no guarda arrays vacíos, así que cats puede venir sin definir.
+    gifts: (Array.isArray(d?.gifts) ? d.gifts : []).map(g => ({ ...g, cats: g.cats || [] }))
   });
 
   let state;
@@ -258,7 +261,7 @@
     } catch { alert('Archivo no válido'); }
   };
 
-  // ===== Sincronización (JSONBlob) =====
+  // ===== Sincronización (Firebase Realtime Database, vía HTTP) =====
   let syncId = null;
   try { syncId = localStorage.getItem(SYNC_KEY); } catch {}
   let syncing = false, again = false, needRender = false, pushTimer, pollTimer;
@@ -295,15 +298,14 @@
     return !(a && (a.classList.contains('col-name') || a.classList.contains('col-color')));
   }
 
-  const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+  const headers = { 'Content-Type': 'application/json' };
 
   async function sync() {
     if (!syncId) return;
     if (syncing) { again = true; return; }
     syncing = true;
     try {
-      const r = await fetch(`${API}/${syncId}`, { headers: { Accept: 'application/json' }, cache: 'no-store' });
-      if (r.status === 404) { setStatus('missing'); return; }
+      const r = await fetch(listUrl(syncId), { cache: 'no-store' });
       if (!r.ok) throw new Error('GET ' + r.status);
       const remote = normalize(await r.json());
       const merged = merge(state, remote);
@@ -315,7 +317,7 @@
         canRender() ? render() : (needRender = true);
       }
       if (changedRemote) {
-        const p = await fetch(`${API}/${syncId}`, { method: 'PUT', headers, body: JSON.stringify(state) });
+        const p = await fetch(listUrl(syncId), { method: 'PUT', headers, body: JSON.stringify(state) });
         if (!p.ok) throw new Error('PUT ' + p.status);
       }
       setStatus('ok');
@@ -343,14 +345,14 @@
 
   async function joinFromLink() {
     const m = location.hash.match(/lista=([\w-]+)/);
-    if (!m || m[1] === syncId) return;
+    if (!DB || !m || m[1] === syncId) return;
     syncId = m[1];
     try { localStorage.setItem(SYNC_KEY, syncId); } catch {}
     setStatus('sync');
     // Si aquí no hay regalos propios, adopta la lista compartida tal cual (evita fichas duplicadas).
     if (!live(state.gifts).length) {
       try {
-        const r = await fetch(`${API}/${syncId}`, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+        const r = await fetch(listUrl(syncId), { cache: 'no-store' });
         if (r.ok) {
           const remote = normalize(await r.json());
           if (remote.children.length || remote.categories.length) { state = remote; save(); render(); }
@@ -361,13 +363,12 @@
 
   $('#btn-share').onclick = async () => {
     try {
+      if (!DB) throw new Error('falta configurar la base de datos');
       if (!syncId) {
         setStatus('sync');
-        const r = await fetch(API, { method: 'POST', headers, body: JSON.stringify(state) });
-        if (!r.ok) throw new Error('POST ' + r.status);
-        const loc = r.headers.get('Location') || r.headers.get('x-jsonblob') || '';
-        const id = loc.split('/').pop();
-        if (!id) throw new Error('sin id');
+        const id = [...crypto.getRandomValues(new Uint8Array(12))].map(b => b.toString(36).padStart(2, '0')).join('');
+        const r = await fetch(listUrl(id), { method: 'PUT', headers, body: JSON.stringify(state) });
+        if (!r.ok) throw new Error('PUT ' + r.status);
         syncId = id;
         try { localStorage.setItem(SYNC_KEY, syncId); } catch {}
         startPolling();
@@ -387,6 +388,6 @@
   setStatus(syncId ? 'sync' : 'off');
   (async () => {
     await joinFromLink();
-    if (syncId) { startPolling(); sync(); }
+    if (syncId && DB) { startPolling(); sync(); }
   })();
 })();
