@@ -3,8 +3,10 @@
   const uid = () => Math.random().toString(36).slice(2, 10);
   const $ = s => document.querySelector(s);
 
+  const PALETTE = ['#e5484d', '#0090ff', '#30a46c', '#f5a524', '#8e4ec6', '#e93d82', '#12a594', '#f76b15'];
+
   const defaults = () => ({
-    children: [{ id: uid(), name: 'Niño 1' }, { id: uid(), name: 'Niño 2' }],
+    children: [{ id: uid(), name: 'Niño 1', color: PALETTE[0] }, { id: uid(), name: 'Niño 2', color: PALETTE[1] }],
     categories: [
       { id: 'juguetes', name: 'Juguetes', color: '#e5484d' },
       { id: 'ropa', name: 'Ropa', color: '#8e4ec6' },
@@ -18,6 +20,7 @@
   let state;
   try { state = JSON.parse(localStorage.getItem(KEY)) || defaults(); } catch { state = defaults(); }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+  const childColor = (ch, i) => ch.color || PALETTE[i % PALETTE.length];
   const cat = id => state.categories.find(c => c.id === id);
 
   let editing = null; // {childId, giftId|null}
@@ -70,13 +73,13 @@
       state.categories.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
     fc.value = state.categories.some(c => c.id === cur) ? cur : '';
 
-    $('#board').innerHTML = state.children.map(ch => {
+    $('#board').innerHTML = state.children.map((ch, i) => {
       const all = state.gifts.filter(g => g.child === ch.id);
       const shown = all.filter(matches);
       const done = all.filter(isDone).length;
       const pct = all.length ? Math.round(done / all.length * 100) : 0;
-      return `<section class="col" data-child="${ch.id}">
-        <div class="col-head"><input class="col-name" value="${esc(ch.name)}" aria-label="Nombre" maxlength="30"><button class="icon ghost" data-act="del-child" title="Eliminar ficha">🗑️</button></div>
+      return `<section class="col" data-child="${ch.id}" style="--c:${childColor(ch, i)}">
+        <div class="col-head"><input class="col-name" value="${esc(ch.name)}" aria-label="Nombre" maxlength="30"><input type="color" class="col-color" value="${childColor(ch, i)}" title="Color de la ficha" aria-label="Color de la ficha"><button class="icon ghost" data-act="del-child" title="Eliminar ficha">🗑️</button></div>
         <div class="stats">${all.length} ${all.length === 1 ? "regalo" : "regalos"} · ${all.filter(g => g.bought).length} comprados · ${done} listos</div>
         <div class="bar"><i style="width:${pct}%"></i></div>
         ${shown.length ? shown.map(giftHtml).join('') : `<div class="empty">${all.length ? 'Nada con este filtro' : 'Aún no hay regalos'}</div>`}
@@ -127,8 +130,10 @@
     save(); render();
   });
   $('#board').addEventListener('change', e => {
-    if (!e.target.classList.contains('col-name')) return;
+    const isName = e.target.classList.contains('col-name');
+    if (!isName && !e.target.classList.contains('col-color')) return;
     const ch = state.children.find(c => c.id === e.target.closest('.col').dataset.child);
+    if (!isName) { ch.color = e.target.value; save(); return render(); }
     ch.name = e.target.value.trim() || ch.name; save(); render();
   });
   $('#f-status').onchange = $('#f-cat').onchange = render;
@@ -218,7 +223,7 @@
   };
 
   $('#btn-child').onclick = () => {
-    state.children.push({ id: uid(), name: 'Niño ' + (state.children.length + 1) });
+    state.children.push({ id: uid(), name: 'Niño ' + (state.children.length + 1), color: PALETTE[state.children.length % PALETTE.length] });
     save(); render();
     document.querySelector('.col:last-child .col-name').select();
   };

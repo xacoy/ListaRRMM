@@ -12,14 +12,15 @@ button,.btn{border:1px solid var(--line);background:var(--card);border-radius:10
 .filters{display:flex;gap:8px;padding:0 16px 8px;flex-wrap:wrap}
 select{padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--card)}
 .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px;padding:0 16px 24px;align-items:start}
-.col{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;min-width:0}
+.col{--c:var(--accent);background:color-mix(in srgb,var(--c) 9%,var(--card));border:1px solid color-mix(in srgb,var(--c) 40%,var(--line));border-top:8px solid var(--c);border-radius:16px;padding:12px;min-width:0}
+.col-color{flex:none;width:34px;height:30px}
 .col-head{display:flex;gap:8px;align-items:center}
-.col-name{flex:1;min-width:0;font-size:1.25rem;font-weight:700;border:0;background:transparent;border-bottom:2px dashed transparent;padding:2px}
+.col-name{color:var(--c);flex:1;min-width:0;font-size:1.25rem;font-weight:700;border:0;background:transparent;border-bottom:2px dashed transparent;padding:2px}
 .col-name:focus{outline:0;border-bottom-color:var(--accent)}
 .stats{color:var(--muted);font-size:.85rem;margin:2px 0 8px}
 .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:10px}
-.bar i{display:block;height:100%;background:var(--ok);width:0}
-.gift{border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:10px;padding:8px 10px;margin-bottom:8px}
+.bar i{display:block;height:100%;background:var(--c);width:0}
+.gift{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:10px;padding:8px 10px;margin-bottom:8px}
 .gift.done{opacity:.7}
 .gift.done .gname{text-decoration:line-through}
 .ghead{display:flex;gap:8px;align-items:flex-start}
@@ -54,3 +55,4 @@ input[type=color]{width:42px;height:36px;padding:2px;border:1px solid var(--line
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:12px;display:flex;gap:10px;align-items:center}
 .toast button{background:transparent;color:inherit;border-color:currentColor;padding:2px 8px}
 .toast[hidden]{display:none}
+.col .col-name{color:var(--c)}
