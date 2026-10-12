@@ -4,12 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lista de Reyes</title>
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <header class="top">
-  <h1>👑 Lista de Reyes</h1>
+  <h1>👑 Lista de Reyes <span id="sync-status" class="sync"></span></h1>
   <div class="actions">
+    <button id="btn-share" class="ghost">🔗 Compartir</button>
     <button id="btn-child" class="ghost">➕ Añadir niño</button>
     <button id="btn-cats" class="ghost">🏷️ Categorías</button>
     <button id="btn-export" class="ghost">⬇️ Exportar</button>
@@ -62,6 +63,6 @@
 </dialog>
 
 <div id="toast" class="toast" hidden></div>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

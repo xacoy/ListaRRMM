@@ -56,3 +56,6 @@ input[type=color]{width:42px;height:36px;padding:2px;border:1px solid var(--line
 .toast button{background:transparent;color:inherit;border-color:currentColor;padding:2px 8px}
 .toast[hidden]{display:none}
 .col input.col-name{color:var(--c)}
+.sync{font-size:.75rem;font-weight:400;color:var(--muted);margin-left:6px;white-space:nowrap}
+.sync.ok{color:var(--ok)}
+.sync.err{color:#e5484d}
