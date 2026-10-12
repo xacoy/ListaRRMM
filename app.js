@@ -33,7 +33,7 @@
 
   // Estado único del regalo. Los datos antiguos (bought/online/arrived) se convierten al leerlos.
   const STATUSES = [['idea', '💡 Idea'], ['store', '🏬 Comprado en tienda'], ['online', '🌐 Comprado online'], ['received', '📦 Recibido']];
-  const statusOf = g => g.status || (!g.bought ? 'idea' : !g.online ? 'store' : g.arrived ? 'received' : 'online');
+  const statusOf = g => g.status ?? (g.bought === undefined ? '' : !g.bought ? 'idea' : !g.online ? 'store' : g.arrived ? 'received' : 'online');
 
   const normalize = d => ({
     children: Array.isArray(d?.children) ? d.children : [],
@@ -53,17 +53,19 @@
   const childColor = (ch, i) => ch.color || PALETTE[i % PALETTE.length];
   const cat = id => live(state.categories).find(c => c.id === id);
 
+  let openCat = null; // regalo con el desplegable de categorías abierto
   let editing = null; // {childId, giftId|null}
   let pickedCats = new Set();
 
   function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
 
-  const isBought = g => g.status !== 'idea';
+  const isBought = g => g.status === 'store' || g.status === 'online' || g.status === 'received';
   const isDone = g => g.status === 'store' || g.status === 'received';
 
   function matches(g) {
     const st = $('#f-status').value, c = $('#f-cat').value;
     if (c && !g.cats.includes(c)) return false;
+    if (st === 'none') return !g.status;
     return !st || g.status === st;
   }
 
@@ -84,9 +86,19 @@
         <button class="icon ghost" data-act="del" title="Borrar">🗑️</button>
       </div>
       ${meta || link ? `<div class="gmeta">${meta}${link}</div>` : ''}
-      <div class="chips">${live(state.categories).map(c => chipHtml(c, g.cats.includes(c.id), `data-act="cat" data-cat="${c.id}"`)).join('')}</div>
-      <div class="toggles">${STATUSES.map(([k, l]) =>
-        `<button class="tg ${g.status === k ? 'on' : ''}" data-act="status" data-status="${k}">${l}</button>`).join('')}</div></div>`;
+      <div class="controls">
+        <details class="catsel" data-g="${g.id}" ${openCat === g.id ? 'open' : ''}>
+          <summary class="sel ${cats.length ? 'has' : ''}">${cats.length
+            ? cats.map(c => `<span class="pill" style="background:${c.color}">${esc(c.name)}</span>`).join('')
+            : '<span class="ph">Seleccionar categoría</span>'}</summary>
+          <div class="panel">${live(state.categories).map(c =>
+            `<label><input type="checkbox" class="catcb" data-cat="${c.id}" ${g.cats.includes(c.id) ? 'checked' : ''}><i style="background:${c.color}"></i>${esc(c.name)}</label>`).join('')}</div>
+        </details>
+        <select class="sel status-sel ${g.status ? 'on' : ''}" aria-label="Estado">
+          <option value="">Seleccionar estado</option>
+          ${STATUSES.map(([k, l]) => `<option value="${k}" ${g.status === k ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div></div>`;
   }
 
   function render() {
@@ -146,11 +158,29 @@
       g.del = true; touch(g); save(); render();
       return toast('Regalo borrado', () => { g.del = false; touch(g); save(); render(); });
     }
-    if (act === 'status') g.status = btn.dataset.status;
-    if (act === 'cat') { const id = btn.dataset.cat; g.cats = g.cats.includes(id) ? g.cats.filter(x => x !== id) : [...g.cats, id]; }
-    touch(g); save(); render();
   });
+  document.addEventListener('click', e => {
+    if (!openCat || e.target.closest('.catsel')) return;
+    openCat = null;
+    document.querySelectorAll('.catsel[open]').forEach(d => (d.open = false));
+  });
+  $('#board').addEventListener('toggle', e => {
+    const id = e.target.dataset?.g;
+    if (!id) return;
+    if (e.target.open) openCat = id; else if (openCat === id) openCat = null;
+  }, true);
   $('#board').addEventListener('change', e => {
+    const gEl = e.target.closest('.gift');
+    if (gEl && (e.target.classList.contains('status-sel') || e.target.classList.contains('catcb'))) {
+      const g = state.gifts.find(x => x.id === gEl.dataset.id);
+      if (e.target.classList.contains('status-sel')) g.status = e.target.value;
+      else {
+        const id = e.target.dataset.cat;
+        g.cats = e.target.checked ? [...new Set([...g.cats, id])] : g.cats.filter(x => x !== id);
+        openCat = g.id;
+      }
+      touch(g); save(); return render();
+    }
     const isName = e.target.classList.contains('col-name');
     if (!isName && !e.target.classList.contains('col-color')) return;
     const ch = state.children.find(c => c.id === e.target.closest('.col').dataset.child);
@@ -178,7 +208,7 @@
     form.reset();
     if (g) {
       form.name.value = g.name; form.store.value = g.store || ''; form.link.value = g.link || '';
-      form.notes.value = g.notes || ''; form.status.value = g.status;
+      form.notes.value = g.notes || ''; form.status.value = g.status || '';
     }
     renderPick(); dlg.showModal();
   }

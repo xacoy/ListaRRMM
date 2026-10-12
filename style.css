@@ -40,7 +40,7 @@ dialog{border:1px solid var(--line);border-radius:16px;background:var(--card);co
 dialog::backdrop{background:#0008}
 dialog h2{margin-top:0}
 dialog label{display:block;margin-bottom:10px;font-size:.9rem;color:var(--muted)}
-dialog input:not([type=checkbox]):not([type=color]):not([type=radio]){display:block;width:100%;margin-top:3px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+dialog input:not([type=checkbox]):not([type=color]){display:block;width:100%;margin-top:3px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
 fieldset{border:1px solid var(--line);border-radius:10px;margin:0 0 10px}
 .checks{display:flex;gap:12px;flex-wrap:wrap}
 .checks label{color:var(--text)}
@@ -57,9 +57,17 @@ input[type=color]{width:42px;height:36px;padding:2px;border:1px solid var(--line
 .sync{font-size:.75rem;font-weight:400;color:var(--muted);margin-left:6px;white-space:nowrap}
 .sync.ok{color:var(--ok)}
 .sync.err{color:#e5484d}
-.states{display:flex;flex-wrap:wrap;gap:6px;padding:6px}
-.states label{margin:0;cursor:pointer;position:relative}
-.states input{position:absolute;opacity:0;pointer-events:none}
-.states span{display:inline-block;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--bg);font-size:.85rem;color:var(--text)}
-.states input:checked+span{background:var(--ok);color:#fff;border-color:var(--ok)}
-.states input:focus-visible+span{outline:2px solid var(--accent)}
+.controls{display:grid;gap:6px;margin-top:8px}
+.sel{font:inherit;font-size:.9rem;width:100%;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);cursor:pointer}
+.sel option{color:var(--text);background:var(--card)}
+.sel.on{background:var(--ok);color:#fff;border-color:var(--ok);font-weight:600}
+.sel .ph{color:var(--muted)}
+.catsel{position:relative}
+.catsel summary{list-style:none;display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding-right:28px;position:relative}
+.catsel summary::-webkit-details-marker{display:none}
+.catsel summary::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.pill{font-size:.75rem;padding:1px 9px;border-radius:999px;color:#fff;font-weight:600}
+.panel{position:absolute;z-index:5;left:0;right:0;margin-top:4px;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px #0003;padding:6px;max-height:240px;overflow:auto}
+.panel label{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer}
+.panel label:hover{background:var(--line)}
+.panel i{width:12px;height:12px;border-radius:50%;flex:none}

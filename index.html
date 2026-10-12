@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lista de Reyes</title>
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 <header class="top">
@@ -21,6 +21,7 @@
 <div class="filters">
   <select id="f-status" aria-label="Estado">
     <option value="">Todos los estados</option>
+    <option value="none">Sin estado</option>
     <option value="idea">💡 Idea</option>
     <option value="store">🏬 Comprado en tienda</option>
     <option value="online">🌐 Comprado online</option>
@@ -39,12 +40,13 @@
     <label>Enlace (opcional) <input name="link" type="url" placeholder="https://…"></label>
     <label>Notas <input name="notes" maxlength="200"></label>
     <fieldset><legend>Categorías</legend><div id="gift-cats" class="chips"></div></fieldset>
-    <fieldset><legend>Estado</legend><div class="states">
-      <label><input type="radio" name="status" value="idea" checked><span>💡 Idea</span></label>
-      <label><input type="radio" name="status" value="store"><span>🏬 Comprado en tienda</span></label>
-      <label><input type="radio" name="status" value="online"><span>🌐 Comprado online</span></label>
-      <label><input type="radio" name="status" value="received"><span>📦 Recibido</span></label>
-    </div></fieldset>
+    <label>Estado <select name="status" class="sel">
+      <option value="">Seleccionar estado</option>
+      <option value="idea">💡 Idea</option>
+      <option value="store">🏬 Comprado en tienda</option>
+      <option value="online">🌐 Comprado online</option>
+      <option value="received">📦 Recibido</option>
+    </select></label>
     <div class="row">
       <button type="button" id="gift-cancel" class="ghost">Cancelar</button>
       <button type="submit" class="primary">Guardar</button>
@@ -64,6 +66,6 @@
 </dialog>
 
 <div id="toast" class="toast" hidden></div>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>
