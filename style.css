@@ -28,9 +28,8 @@ select{padding:6px 8px;border-radius:10px;border:1px solid var(--line);backgroun
 .gmeta{color:var(--muted);font-size:.85rem;margin-top:2px;word-break:break-word}
 .gmeta a{color:var(--accent)}
 .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
-.chip{font-size:.75rem;padding:2px 8px;border-radius:999px;color:#fff;border:2px solid transparent;cursor:default}
-.chips.pick .chip{cursor:pointer;opacity:.45}
-.chips.pick .chip.on{opacity:1;border-color:var(--text)}
+.chip{--cc:#888;font-size:.75rem;padding:2px 9px;border-radius:999px;color:var(--cc);background:transparent;border:1.5px solid var(--cc);cursor:pointer}
+.chip.on{background:var(--cc);color:#fff;font-weight:600}
 .toggles{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .tg{font-size:.8rem;padding:3px 9px;border-radius:999px}
 .tg.on{background:var(--ok);color:#fff;border-color:var(--ok)}

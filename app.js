@@ -67,8 +67,9 @@
     return !st || g.status === st;
   }
 
-  function chipHtml(c) {
-    return `<span class="chip" style="background:${c.color}">${esc(c.name)}</span>`;
+  // Todas las categorías como selector: la elegida va rellena con ✓, las demás solo con borde.
+  function chipHtml(c, on, attrs = '') {
+    return `<button type="button" class="chip ${on ? 'on' : ''}" ${attrs} style="--cc:${c.color}" aria-pressed="${on}">${on ? '✓ ' : ''}${esc(c.name)}</button>`;
   }
 
   function giftHtml(g) {
@@ -83,7 +84,7 @@
         <button class="icon ghost" data-act="del" title="Borrar">🗑️</button>
       </div>
       ${meta || link ? `<div class="gmeta">${meta}${link}</div>` : ''}
-      ${cats.length ? `<div class="chips">${cats.map(chipHtml).join('')}</div>` : ''}
+      <div class="chips">${live(state.categories).map(c => chipHtml(c, g.cats.includes(c.id), `data-act="cat" data-cat="${c.id}"`)).join('')}</div>
       <div class="toggles">${STATUSES.map(([k, l]) =>
         `<button class="tg ${g.status === k ? 'on' : ''}" data-act="status" data-status="${k}">${l}</button>`).join('')}</div></div>`;
   }
@@ -146,6 +147,7 @@
       return toast('Regalo borrado', () => { g.del = false; touch(g); save(); render(); });
     }
     if (act === 'status') g.status = btn.dataset.status;
+    if (act === 'cat') { const id = btn.dataset.cat; g.cats = g.cats.includes(id) ? g.cats.filter(x => x !== id) : [...g.cats, id]; }
     touch(g); save(); render();
   });
   $('#board').addEventListener('change', e => {
@@ -160,9 +162,9 @@
   // --- Diálogo de regalo ---
   const dlg = $('#dlg-gift'), form = $('#form-gift');
   function renderPick() {
-    $('#gift-cats').className = 'chips pick';
+    $('#gift-cats').className = 'chips';
     $('#gift-cats').innerHTML = live(state.categories).map(c =>
-      `<span class="chip ${pickedCats.has(c.id) ? 'on' : ''}" data-id="${c.id}" style="background:${c.color}">${esc(c.name)}</span>`).join('');
+      chipHtml(c, pickedCats.has(c.id), `data-id="${c.id}"`)).join('');
   }
   $('#gift-cats').addEventListener('click', e => {
     const c = e.target.closest('.chip'); if (!c) return;
