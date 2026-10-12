@@ -55,4 +55,4 @@ input[type=color]{width:42px;height:36px;padding:2px;border:1px solid var(--line
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:12px;display:flex;gap:10px;align-items:center}
 .toast button{background:transparent;color:inherit;border-color:currentColor;padding:2px 8px}
 .toast[hidden]{display:none}
-.col .col-name{color:var(--c)}
+.col input.col-name{color:var(--c)}
