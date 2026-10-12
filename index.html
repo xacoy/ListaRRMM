@@ -4,17 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lista de Reyes</title>
-<link rel="stylesheet" href="style.css?v=9">
+<script>try{if(localStorage.getItem("lista-reyes-theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+<link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 <header class="top">
-  <h1>👑 Lista de Reyes <span id="sync-status" class="sync"></span></h1>
-  <div class="actions">
-    <button id="btn-share" class="ghost">🔗 Compartir</button>
-    <button id="btn-child" class="ghost">➕ Añadir niño</button>
-    <button id="btn-cats" class="ghost">🏷️ Categorías</button>
-    <button id="btn-export" class="ghost">⬇️ Exportar</button>
-    <label class="ghost btn">⬆️ Importar<input id="file-import" type="file" accept="application/json" hidden></label>
+  <div>
+    <h1>👑 Lista de Reyes</h1>
+    <div id="sync-status" class="sync"></div>
+  </div>
+  <div class="menu">
+    <button id="btn-menu" class="ghost" aria-haspopup="true" aria-expanded="false">☰ Menú</button>
+    <div id="menu-panel" class="menu-panel" hidden>
+      <button id="btn-share">🔗 Compartir</button>
+      <button id="btn-child">➕ Añadir niño</button>
+      <button id="btn-cats">🏷️ Categorías</button>
+      <button id="btn-export">⬇️ Exportar</button>
+      <label class="btn">⬆️ Importar<input id="file-import" type="file" accept="application/json" hidden></label>
+      <button id="btn-theme">🌙 Tema oscuro</button>
+    </div>
   </div>
 </header>
 
@@ -48,6 +56,7 @@
       <option value="received">📦 Recibido</option>
     </select></label>
     <div class="row">
+      <button type="button" id="gift-delete" class="danger" hidden>🗑️ Eliminar</button>
       <button type="button" id="gift-cancel" class="ghost">Cancelar</button>
       <button type="submit" class="primary">Guardar</button>
     </div>
@@ -66,6 +75,6 @@
 </dialog>
 
 <div id="toast" class="toast" hidden></div>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

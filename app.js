@@ -12,7 +12,18 @@
   const seen = s => ['children', 'categories', 'gifts'].forEach(k => s[k].forEach(i => { if (i.u > clock) clock = i.u; }));
   const $ = s => document.querySelector(s);
 
-  const PALETTE = ['#e5484d', '#0090ff', '#30a46c', '#f5a524', '#8e4ec6', '#e93d82', '#12a594', '#f76b15'];
+  // Tonos pastel. Los colores saturados de versiones anteriores se suavizan al leerlos.
+  const PALETTE = ['#f4a3b0', '#9ccaf5', '#a3dcb8', '#f7cf8a', '#c8b2f2', '#f5aed0', '#92d9d0', '#f7b793'];
+  const OLD_TO_NEW = {
+    '#e5484d': PALETTE[0], '#0090ff': PALETTE[1], '#30a46c': PALETTE[2], '#f5a524': PALETTE[3],
+    '#8e4ec6': PALETTE[4], '#e93d82': PALETTE[5], '#12a594': PALETTE[6], '#f76b15': PALETTE[7], '#6b7280': '#cdc9d6'
+  };
+  const soften = x => (OLD_TO_NEW[x.color] ? { ...x, color: OLD_TO_NEW[x.color] } : x);
+  // Texto legible sobre un color de fondo (oscuro sobre pastel, blanco sobre oscuro).
+  const ink = hex => {
+    const n = parseInt(hex.slice(1), 16);
+    return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) > 150 ? '#3b3548' : '#fff';
+  };
 
   // Cada elemento lleva c (creado), u (última modificación) y del (borrado, "lápida"),
   // para poder fusionar los cambios de dos personas sin pisarse.
@@ -22,11 +33,11 @@
       { id: uid(), name: 'Niño 2', color: PALETTE[1], c: 2, u: 1 }
     ],
     categories: [
-      { id: 'juguetes', name: 'Juguetes', color: '#e5484d', c: 1, u: 1 },
-      { id: 'ropa', name: 'Ropa', color: '#8e4ec6', c: 2, u: 1 },
-      { id: 'libros', name: 'Libros', color: '#0090ff', c: 3, u: 1 },
-      { id: 'juegos', name: 'Juegos', color: '#30a46c', c: 4, u: 1 },
-      { id: 'otros', name: 'Otros', color: '#6b7280', c: 5, u: 1 }
+      { id: 'juguetes', name: 'Juguetes', color: PALETTE[0], c: 1, u: 1 },
+      { id: 'ropa', name: 'Ropa', color: PALETTE[4], c: 2, u: 1 },
+      { id: 'libros', name: 'Libros', color: PALETTE[1], c: 3, u: 1 },
+      { id: 'juegos', name: 'Juegos', color: PALETTE[2], c: 4, u: 1 },
+      { id: 'otros', name: 'Otros', color: '#cdc9d6', c: 5, u: 1 }
     ],
     gifts: []
   });
@@ -36,8 +47,8 @@
   const statusOf = g => g.status ?? (g.bought === undefined ? '' : !g.bought ? 'idea' : !g.online ? 'store' : g.arrived ? 'received' : 'online');
 
   const normalize = d => ({
-    children: Array.isArray(d?.children) ? d.children : [],
-    categories: Array.isArray(d?.categories) ? d.categories : [],
+    children: (Array.isArray(d?.children) ? d.children : []).map(soften),
+    categories: (Array.isArray(d?.categories) ? d.categories : []).map(soften),
     // Firebase no guarda arrays vacíos, así que cats puede venir sin definir.
     gifts: (Array.isArray(d?.gifts) ? d.gifts : []).map(g => ({ ...g, cats: g.cats || [], status: statusOf(g) }))
   });
@@ -71,7 +82,7 @@
 
   // Todas las categorías como selector: la elegida va rellena con ✓, las demás solo con borde.
   function chipHtml(c, on, attrs = '') {
-    return `<button type="button" class="chip ${on ? 'on' : ''}" ${attrs} style="--cc:${c.color}" aria-pressed="${on}">${on ? '✓ ' : ''}${esc(c.name)}</button>`;
+    return `<button type="button" class="chip ${on ? 'on' : ''}" ${attrs} style="--cc:${c.color};--ink:${ink(c.color)}" aria-pressed="${on}">${on ? '✓ ' : ''}${esc(c.name)}</button>`;
   }
 
   function giftHtml(g) {
@@ -83,13 +94,12 @@
       <div class="ghead">
         <div class="gname">${esc(g.name)}</div>
         <button class="icon ghost" data-act="edit" title="Editar">✏️</button>
-        <button class="icon ghost" data-act="del" title="Borrar">🗑️</button>
       </div>
       ${meta || link ? `<div class="gmeta">${meta}${link}</div>` : ''}
       <div class="controls">
         <details class="catsel" data-g="${g.id}" ${openCat === g.id ? 'open' : ''}>
           <summary class="sel ${cats.length ? 'has' : ''}">${cats.length
-            ? cats.map(c => `<span class="pill" style="background:${c.color}">${esc(c.name)}</span>`).join('')
+            ? cats.map(c => `<span class="pill" style="background:${c.color};color:${ink(c.color)}">${esc(c.name)}</span>`).join('')
             : '<span class="ph">Seleccionar categoría</span>'}</summary>
           <div class="panel">${live(state.categories).map(c =>
             `<label><input type="checkbox" class="catcb" data-cat="${c.id}" ${g.cats.includes(c.id) ? 'checked' : ''}><i style="background:${c.color}"></i>${esc(c.name)}</label>`).join('')}</div>
@@ -154,10 +164,6 @@
     }
     const g = state.gifts.find(x => x.id === gEl.dataset.id);
     if (act === 'edit') return openGift(childId, g);
-    if (act === 'del') {
-      g.del = true; touch(g); save(); render();
-      return toast('Regalo borrado', () => { g.del = false; touch(g); save(); render(); });
-    }
   });
   document.addEventListener('click', e => {
     if (!openCat || e.target.closest('.catsel')) return;
@@ -206,6 +212,7 @@
     pickedCats = new Set(g?.cats || []);
     $('#gift-title').textContent = g ? 'Editar regalo' : 'Nuevo regalo para ' + live(state.children).find(c => c.id === childId).name;
     form.reset();
+    $('#gift-delete').hidden = !g;
     if (g) {
       form.name.value = g.name; form.store.value = g.store || ''; form.link.value = g.link || '';
       form.notes.value = g.notes || ''; form.status.value = g.status || '';
@@ -213,6 +220,12 @@
     renderPick(); dlg.showModal();
   }
   $('#gift-cancel').onclick = () => dlg.close();
+  $('#gift-delete').onclick = () => {
+    const g = state.gifts.find(x => x.id === editing.giftId);
+    if (!g) return;
+    g.del = true; touch(g); save(); render(); dlg.close();
+    toast('Regalo borrado', () => { g.del = false; touch(g); save(); render(); });
+  };
   form.addEventListener('submit', e => {
     e.preventDefault();
     const data = {
@@ -255,6 +268,27 @@
     state.categories.push(mk({ id: uid(), name: f.name.value.trim(), color: f.color.value }));
     f.reset(); save(); renderCats();
   });
+
+  // --- Menú superior y tema ---
+  const menu = $('#menu-panel'), menuBtn = $('#btn-menu');
+  const setMenu = open => { menu.hidden = !open; menuBtn.setAttribute('aria-expanded', open); };
+  menuBtn.onclick = e => { e.stopPropagation(); setMenu(menu.hidden); };
+  menu.addEventListener('click', e => { if (e.target.closest('button')) setMenu(false); });
+  menu.addEventListener('change', () => setMenu(false));
+  document.addEventListener('click', e => { if (!e.target.closest('.menu')) setMenu(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') setMenu(false); });
+
+  const THEME_KEY = 'lista-reyes-theme';
+  function applyTheme(t) {
+    document.documentElement.dataset.theme = t;
+    $('#btn-theme').textContent = t === 'dark' ? '☀️ Tema claro' : '🌙 Tema oscuro';
+  }
+  $('#btn-theme').onclick = () => {
+    const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem(THEME_KEY, t); } catch {}
+    applyTheme(t);
+  };
+  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
 
   $('#btn-child').onclick = () => {
     const n = live(state.children).length;
