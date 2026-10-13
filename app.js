@@ -147,7 +147,7 @@
 
   // Un solo diseño de regalo: tarjeta (niños) o fila sin caja (dentro de una persona de familia).
   function giftHtml(g, flat) {
-    return `<div class="gift ${flat ? 'flat' : ''} ${isDone(g) ? 'done' : ''}" data-id="${g.id}">
+    return `<div class="gift ${flat ? 'flat' : ''} ${isDone(g) ? 'done' : isBought(g) ? 'bought' : ''}" data-id="${g.id}">
       <div class="ghead"><div class="gname">${esc(g.name)}</div>${editBtn('edit', 'Editar regalo', true)}</div>
       ${metaHtml(g)}
       <div class="controls">${catsHtml(g)}${statusHtml(g)}</div></div>`;
@@ -181,7 +181,7 @@
       return `<section class="col ${min ? 'collapsed' : ''}" data-child="${ch.id}" style="--c:${colorOf(ch, i)}">
         ${head(ch.id, min, ch.name, 'edit-child', 'Editar ficha')}
         ${banner(all, '')}
-        ${min ? '' : `${shown.length ? shown.map(g => giftHtml(g)).join('') : `<div class="empty">${all.length ? 'Nada con este filtro' : 'Aún no hay regalos'}</div>`}
+        ${min ? '' : `${shown.length ? `<div class="glist">${shown.map(g => giftHtml(g)).join('')}</div>` : `<div class="empty">${all.length ? 'Nada con este filtro' : 'Aún no hay regalos'}</div>`}
         <button class="add" data-act="add">＋ Añadir regalo</button>`}
       </section>`;
     });
@@ -207,7 +207,8 @@
         <button class="add" data-act="add-person">＋ Añadir persona</button>`}
       </section>`;
     });
-    $('#board').innerHTML = sec('Niños', 'add-child', '＋ Niño') + kids.join('') + sec('Familias', 'add-family', '＋ Familia') + fams.join('');
+    $('#board').innerHTML = sec('Niños', 'add-child', '＋ Niño') + `<div class="grid">${kids.join('')}</div>` +
+      sec('Familias', 'add-family', '＋ Familia') + `<div class="grid fams">${fams.join('')}</div>`;
   }
 
   // --- Aviso de primera vez (solo en este dispositivo) ---
