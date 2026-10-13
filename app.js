@@ -14,6 +14,24 @@
   const seen = s => KEYS.forEach(k => s[k].forEach(i => { if (i.u > clock) clock = i.u; }));
   const $ = s => document.querySelector(s);
 
+  // Mantener la posición de la página: tras redibujar o cerrar un diálogo (y bajar el teclado del móvil)
+  // algunos navegadores saltan al principio. Se vuelve a donde estaba el usuario.
+  const maxScroll = () => Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+  let scrollToken = 0; // cualquier gesto del usuario cancela las correcciones pendientes
+  ['wheel', 'touchstart', 'keydown'].forEach(ev => window.addEventListener(ev, () => { scrollToken++; }, { passive: true }));
+  function restoreScroll(y, delays) {
+    const token = ++scrollToken;
+    const go = () => {
+      if (token !== scrollToken) return;
+      const t = Math.min(y, maxScroll());
+      if (Math.abs(window.scrollY - t) > 2) window.scrollTo(0, t);
+    };
+    go(); requestAnimationFrame(go); delays.forEach(d => setTimeout(go, d));
+  }
+  const showModal = HTMLDialogElement.prototype.showModal;
+  HTMLDialogElement.prototype.showModal = function () { this._y = window.scrollY; return showModal.call(this); };
+  document.addEventListener('close', e => { if (e.target._y != null) restoreScroll(e.target._y, [150, 400]); }, true);
+
   // Tonos pastel. Los colores saturados de versiones anteriores se suavizan al leerlos.
   const PALETTE = ['#f4a3b0', '#9ccaf5', '#a3dcb8', '#f7cf8a', '#c8b2f2', '#f5aed0', '#92d9d0', '#f7b793'];
   const OLD_TO_NEW = {
@@ -165,6 +183,8 @@
 
   function render() {
     needRender = false;
+    const y = window.scrollY, board = $('#board');
+    board.style.minHeight = board.offsetHeight + 'px'; // evita que la página se acorte un instante
     const cats = live(state.categories);
     const fc = $('#f-cat'), cur = fc.value;
     fc.innerHTML = '<option value="">Todas las categorías</option>' +
@@ -209,6 +229,8 @@
     });
     $('#board').innerHTML = sec('Niños', 'add-child', '＋ Niño') + `<div class="grid">${kids.join('')}</div>` +
       sec('Familias', 'add-family', '＋ Familia') + `<div class="grid fams">${fams.join('')}</div>`;
+    restoreScroll(y, [120]);
+    requestAnimationFrame(() => { board.style.minHeight = ''; restoreScroll(y, []); });
   }
 
   // --- Aviso de primera vez (solo en este dispositivo) ---
