@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Reyes">
-<link rel="stylesheet" href="style.css?v=29">
+<link rel="stylesheet" href="style.css?v=30">
 </head>
 <body>
 <header class="top">
@@ -37,6 +37,7 @@
         <button id="btn-export">⬇️ Exportar copia</button>
         <label class="btn">⬆️ Importar copia<input id="file-import" type="file" accept="application/json" hidden></label>
         <hr>
+        <button id="btn-dups">⚠️ Aviso de duplicados</button>
         <button id="btn-install" hidden>📲 Instalar como app</button>
         <button id="btn-theme">🌙 Tema oscuro</button>
       </div>
@@ -62,7 +63,7 @@
   <form method="dialog" id="form-gift">
     <h2 id="gift-title">Nuevo regalo</h2>
     <label>Regalo <input name="name" required maxlength="120"></label>
-    <div id="dup-warn" class="warn" hidden></div>
+    <div id="dup-warn" class="warn" hidden><span id="dup-txt"></span><button type="button" id="dup-ignore" class="linkbtn">Quitar aviso</button></div>
     <div class="lbl">Estado</div>
     <div id="gift-status" class="seg">
       <button type="button" data-s="idea"><b>💡</b>Idea</button>
@@ -157,6 +158,6 @@
 
 <div id="version" class="version" aria-hidden="true"></div>
 <div id="toast" class="toast" hidden></div>
-<script src="app.js?v=29"></script>
+<script src="app.js?v=30"></script>
 </body>
 </html>

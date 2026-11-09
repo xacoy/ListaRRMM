@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = '3.0.1.0909';
+  const VERSION = '3.0.2.0914';
   const KEY = 'lista-reyes-v1';
   const SYNC_KEY = 'lista-reyes-sync';
   // URL de la Realtime Database de Firebase (sin barra final), p. ej. https://xxxx-default-rtdb.europe-west1.firebasedatabase.app
@@ -165,15 +165,15 @@
     return `<span class="tile" style="${c ? `--tc:${c.color}` : ''}" aria-hidden="true">${esc(c ? catIcon(c) : '🎁')}</span>`;
   };
 
-  // Duplicados: mismo nombre (sin mayúsculas, tildes ni signos) en cualquier persona.
+  // Duplicados: mismo nombre (sin mayúsculas, tildes ni signos) dentro de la lista de CADA persona.
+  // Se puede quitar el aviso de un regalo («nodup») o desactivarlo del todo en este dispositivo.
+  const DUPS_KEY = 'lista-reyes-dups';
+  let dupsOn = true;
+  try { dupsOn = localStorage.getItem(DUPS_KEY) !== 'off'; } catch {}
   const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
   const dupsOf = (name, exceptId, owner) => {
-    const n = norm(name); if (!n) return [];
-    return live(state.gifts).filter(g => g.id !== exceptId && norm(g.name) === n && ownerName(g.child));
-  };
-  const dupText = (list, owner) => {
-    const names = [...new Set(list.map(g => g.child === owner ? 'esta misma lista' : 'la lista de ' + ownerName(g.child)))];
-    return names.join(' y ');
+    const n = norm(name); if (!n || !dupsOn) return [];
+    return live(state.gifts).filter(g => g.id !== exceptId && g.child === owner && norm(g.name) === n);
   };
 
   // --- Piezas de un regalo ---
@@ -188,8 +188,8 @@
     const link = g.link && /^https?:\/\//i.test(g.link) ? `<a href="${esc(g.link)}" target="_blank" rel="noopener">enlace</a>` : '';
     const bits = [lead, g.store ? '🛒 ' + esc(g.store) : '', buyer ? '🛍️ ' + esc(buyer.name) : '', g.notes ? esc(g.notes) : '', link].filter(Boolean).join(' · ');
     const cats = g.cats.map(cat).filter(Boolean).map(c => `<span class="pill" style="background:${c.color};color:${ink(c.color)}">${esc(c.name)}</span>`).join('');
-    const dup = dupsOf(g.name, g.id);
-    const dupTag = dup.length ? `<span class="tag y">⚠️ También en ${[...new Set(dup.map(d => d.child === g.child ? 'esta lista' : ownerName(d.child)))].map(esc).join(', ')}</span>` : '';
+    const dupTag = !g.nodup && dupsOf(g.name, g.id, g.child).length
+      ? `<button class="tag y dupbtn" data-act="nodup" title="Quitar el aviso de repetido" aria-label="Quitar el aviso de repetido">⚠️ Repetido en esta lista ✕</button>` : '';
     return (bits ? `<div class="mt">${bits}</div>` : '') + (cats || dupTag ? `<div class="pills">${cats}${dupTag}</div>` : '');
   }
   const giftRow = g => `<div class="gr ${stKind(g)}" data-id="${g.id}">${giftTile(g)}
@@ -372,6 +372,12 @@
     if (act === 'edit-owner') return cur && openOwner(cur.kind, cur.id);
     if (!g) return;
     if (act === 'edit') return openGift(g.child, g);
+    if (act === 'nodup') {
+      const group = [g, ...dupsOf(g.name, g.id, g.child)].filter(x => !x.nodup);
+      group.forEach(x => { x.nodup = true; touch(x); });
+      save(); render();
+      return toast('Aviso quitado', () => { group.forEach(x => { x.nodup = false; touch(x); }); save(); render(); });
+    }
     if (act === 'cycle') return setGiftStatus(g, nextStatus(g));
     if (act === 'setst') return setGiftStatus(g, btn.dataset.s);
   });
@@ -386,8 +392,8 @@
     const inp = $('#quick-name'), name = inp.value.trim();
     if (!ui.owner) return;
     if (!name) return openGift(ui.owner, null);
-    const dup = dupsOf(name, null);
-    if (dup.length && !confirm(`⚠️ «${dup[0].name}» ya está en ${dupText(dup, ui.owner)}.\n\n¿Añadirlo igualmente?`)) return;
+    const dup = dupsOf(name, null, ui.owner);
+    if (dup.length && !confirm(`⚠️ «${dup[0].name}» ya está en la lista de ${ownerName(ui.owner)}.\n\n¿Añadirlo igualmente?`)) return;
     state.gifts.push(mk({ id: uid(), child: ui.owner, name, store: '', link: '', notes: '', status: 'idea', buyer: '', cats: [] }));
     inp.value = ''; save(); render();
   });
@@ -414,15 +420,19 @@
       live(state.buyers).map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('');
     form.buyer.value = val;
   }
+  let dupIgnored = false; // el usuario ha quitado el aviso para el regalo que está editando
   function showDup() {
-    const w = $('#dup-warn'), d = dupsOf(form.name.value, editing?.giftId);
-    w.hidden = !d.length;
-    if (d.length) w.textContent = `⚠️ «${d[0].name}» ya está en ${dupText(d, editing.ownerId)}. ¿Es un duplicado?`;
+    const w = $('#dup-warn'), d = dupsOf(form.name.value, editing?.giftId, editing?.ownerId);
+    const g = editing?.giftId && state.gifts.find(x => x.id === editing.giftId);
+    w.hidden = !d.length || dupIgnored || !!g?.nodup;
+    if (!w.hidden) $('#dup-txt').textContent = `⚠️ «${d[0].name}» ya está en la lista de ${ownerName(editing.ownerId)}. ¿Es un duplicado?`;
   }
+  $('#dup-ignore').onclick = () => { dupIgnored = true; showDup(); };
   form.name.addEventListener('input', showDup);
   const buyersUnedited = () => live(state.buyers).every(b => (b.u || 0) <= 1);
   function openGift(ownerId, g) {
     editing = { ownerId, giftId: g?.id || null };
+    dupIgnored = false;
     pickedCats = new Set(g?.cats || []);
     $('#gift-title').textContent = g ? g.name : 'Nuevo regalo para ' + ownerName(ownerId);
     form.reset();
@@ -452,6 +462,7 @@
       name: form.name.value.trim(), store: form.store.value.trim(), link: form.link.value.trim(), notes: form.notes.value.trim(),
       status: form.status.value || 'idea', buyer: form.buyer.value, cats: [...pickedCats]
     };
+    if (dupIgnored) data.nodup = true;
     if (!data.name) return;
     const existing = editing.giftId && state.gifts.find(g => g.id === editing.giftId);
     if (existing) touch(Object.assign(existing, data));
@@ -605,6 +616,15 @@
     if (!b || !e.target.value.trim()) return;
     b.name = e.target.value.trim(); touch(b); save();
   });
+
+  // --- Aviso de duplicados: activar / desactivar en este dispositivo ---
+  const paintDups = () => { $('#btn-dups').textContent = '⚠️ Aviso de duplicados: ' + (dupsOn ? 'Sí' : 'No'); };
+  paintDups();
+  $('#btn-dups').onclick = () => {
+    dupsOn = !dupsOn;
+    try { localStorage.setItem(DUPS_KEY, dupsOn ? 'on' : 'off'); } catch {}
+    paintDups(); render();
+  };
 
   // --- Instalar como app y funcionamiento sin conexión ---
   let installEv = null;

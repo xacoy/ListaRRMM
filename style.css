@@ -286,3 +286,7 @@ input.emo{width:56px!important;text-align:center;flex:none;padding-left:4px!impo
 .bbar u{display:block;height:100%;background:#ffd34d;border-radius:99px;text-decoration:none}
 
 .catform{flex-wrap:wrap}.catform input:first-child{flex:1 1 100%}.catform .primary{margin-left:auto}
+
+.warn{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;justify-content:space-between}
+.warn .linkbtn{color:var(--id);text-decoration:underline;font-weight:700;font-size:.8rem;padding:0}
+button.tag{border:0;cursor:pointer;font-family:inherit}
