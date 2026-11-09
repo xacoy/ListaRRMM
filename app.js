@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = '3.0.2.0914';
+  const VERSION = '3.1.0.0919';
   const KEY = 'lista-reyes-v1';
   const SYNC_KEY = 'lista-reyes-sync';
   // URL de la Realtime Database de Firebase (sin barra final), p. ej. https://xxxx-default-rtdb.europe-west1.firebasedatabase.app
@@ -111,7 +111,7 @@
   let ui = { view: 'home', owner: null, mode: 'list' };
   try { ui = { ...ui, ...JSON.parse(localStorage.getItem(UI_KEY)) }; } catch {}
   const saveUi = () => { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch {} };
-  let shopFilter = 'pending';
+  let shopFilter = 'ship';
   let filtersOpen = false;
   let editing = null; // {ownerId, giftId|null}
   let pickedCats = new Set();
@@ -266,21 +266,31 @@
     return `<div class="home">${big}${cards}</div>`;
   }
 
-  // --- Pantalla «Compras»: lista de lo que falta y lo comprado ---
-  function shopHtml(os, gifts) {
+  // Una fila de la lista por persona: avatar, nombre y a la derecha estado o botones de compra.
+  const personRow = (g, o) => `<div class="gr ${stKind(g)}" data-id="${g.id}">${avatar(o, true)}
+    <div class="gbody" data-act="edit" role="button" tabindex="0" aria-label="Editar ${esc(g.name)}"><div class="nm">${esc(g.name)}</div>${giftMeta(g, 'para ' + esc(o.name))}</div>
+    ${isIdea(g) ? `<div class="qbtns"><button data-act="setst" data-s="store">Tienda</button><button data-act="setst" data-s="online">Online</button></div>` : stBtn(g)}</div>`;
+
+  // --- Pantalla «Ideas»: todo lo que aún no está comprado ---
+  function ideasHtml(os, gifts) {
     const byId = new Map(os.map(x => [x.id, x]));
-    const all = gifts.filter(g => byId.has(g.child));
-    const pend = all.filter(isIdea), got = all.filter(isBought);
-    const list = shopFilter === 'pending' ? pend : shopFilter === 'bought' ? got : all;
-    const chips = [['pending', `Pendientes · ${pend.length}`], ['bought', `Comprados · ${got.length}`], ['all', 'Todo']]
+    const list = gifts.filter(g => byId.has(g.child) && isIdea(g));
+    const rows = list.map(g => personRow(g, byId.get(g.child))).join('');
+    return `<div class="sh" style="margin-top:2px"><span>Por comprar</span><span>${list.length}</span></div>` +
+      (rows ? `<div class="shoplist">${rows}</div>` : `<div class="empty">🎉 No queda nada por comprar</div>`);
+  }
+
+  // --- Pantalla «En camino»: lo ya comprado (en camino, recibido o comprado en tienda) ---
+  function shipHtml(os, gifts) {
+    const byId = new Map(os.map(x => [x.id, x]));
+    const got = gifts.filter(g => byId.has(g.child) && isBought(g));
+    const ship = got.filter(g => g.status === 'online'), ready = got.filter(isDone);
+    const list = shopFilter === 'ready' ? ready : shopFilter === 'all' ? got : ship;
+    const chips = [['ship', `📦 En camino · ${ship.length}`], ['ready', `✓ Listos · ${ready.length}`], ['all', `Todo comprado · ${got.length}`]]
       .map(([k, l]) => `<button class="${shopFilter === k ? 'on' : ''}" data-act="shopf" data-f="${k}">${l}</button>`).join('');
-    const rows = list.map(g => {
-      const o = byId.get(g.child);
-      return `<div class="gr ${stKind(g)}" data-id="${g.id}">${avatar(o, true)}
-        <div class="gbody" data-act="edit"><div class="nm">${esc(g.name)}</div>${giftMeta(g, 'para ' + esc(o.name))}</div>
-        ${isIdea(g) ? `<div class="qbtns"><button data-act="setst" data-s="store">Tienda</button><button data-act="setst" data-s="online">Online</button></div>` : stBtn(g)}</div>`;
-    }).join('');
-    return `<div class="fchips">${chips}</div>${rows ? `<div class="shoplist">${rows}</div>` : `<div class="empty">${shopFilter === 'pending' ? '🎉 No queda nada por comprar' : 'Nada por aquí'}</div>`}`;
+    const rows = list.map(g => personRow(g, byId.get(g.child))).join('');
+    const none = shopFilter === 'ship' ? 'Nada en camino ahora mismo' : 'Aún no hay nada por aquí';
+    return `<div class="fchips">${chips}</div>${rows ? `<div class="shoplist">${rows}</div>` : `<div class="empty">${none}</div>`}`;
   }
 
   // --- Dibujar ---
@@ -298,12 +308,15 @@
 
     const os = owners(), gifts = live(state.gifts);
     if (!os.some(x => x.id === ui.owner)) ui.owner = os[0]?.id || null;
-    if (!['home', 'gifts', 'shop'].includes(ui.view)) ui.view = 'home';
-    board.innerHTML = ui.view === 'home' ? homeHtml(os, gifts) : ui.view === 'shop' ? shopHtml(os, gifts) : giftsHtml(os, gifts);
+    if (ui.view === 'shop') ui.view = 'ship'; // nombre antiguo de la pantalla
+    if (!['home', 'gifts', 'ideas', 'ship'].includes(ui.view)) ui.view = 'home';
+    board.innerHTML = ui.view === 'home' ? homeHtml(os, gifts) : ui.view === 'ideas' ? ideasHtml(os, gifts) : ui.view === 'ship' ? shipHtml(os, gifts) : giftsHtml(os, gifts);
 
     document.querySelectorAll('#nav [data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === ui.view));
     const pend = gifts.filter(g => isIdea(g) && os.some(x => x.id === g.child)).length;
-    $('#nav-badge').textContent = pend || ''; $('#nav-badge').hidden = !pend;
+    const onShip = gifts.filter(g => g.status === 'online' && os.some(x => x.id === g.child)).length;
+    $('#nav-badge-ideas').textContent = pend || ''; $('#nav-badge-ideas').hidden = !pend;
+    $('#nav-badge-ship').textContent = onShip || ''; $('#nav-badge-ship').hidden = !onShip;
     const onGifts = ui.view === 'gifts' && !!os.length;
     $('#quick').hidden = !onGifts;
     document.body.classList.toggle('has-quick', onGifts);
