@@ -1,4 +1,5 @@
 (() => {
+  const VERSION = '1.2.0';
   const KEY = 'lista-reyes-v1';
   const SYNC_KEY = 'lista-reyes-sync';
   // URL de la Realtime Database de Firebase (sin barra final), p. ej. https://xxxx-default-rtdb.europe-west1.firebasedatabase.app
@@ -692,6 +693,7 @@
     }
   };
 
+  $('#version').textContent = 'v' + VERSION;
   render();
   setStatus(syncId ? 'sync' : 'off');
   (async () => {
