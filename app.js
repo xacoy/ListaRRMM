@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = '2.2.1.0852';
+  const VERSION = '2.2.2.0854';
   const KEY = 'lista-reyes-v1';
   const SYNC_KEY = 'lista-reyes-sync';
   // URL de la Realtime Database de Firebase (sin barra final), p. ej. https://xxxx-default-rtdb.europe-west1.firebasedatabase.app
@@ -154,8 +154,8 @@
     return { gs, done, ideas: gs.filter(isIdea), pct: gs.length ? Math.round(done / gs.length * 100) : 0 };
   }
   const avatar = (x, sm) => `<span class="av ${sm ? 'sm' : ''}" style="background:${x.color};color:${ink(x.color)}">${esc((x.name || '?').trim().charAt(0).toUpperCase())}</span>`;
-  // Anillo de progreso: color de la persona; amarillo al 100 % (todo comprado); verde si está terminada.
-  const ring = (pct, color, fin, total = 1) => `<span class="ring ${fin ? 'fin' : pct === 100 && total ? 'full' : ''}" style="--p:${pct * 3.6}deg;--rc:${color}"><span>${pct}%</span></span>`;
+  // Anillo de progreso: mismo color para todos (acento); amarillo al 100 % (todo comprado); verde si está terminada.
+  const ring = (pct, color, fin, total = 1) => `<span class="ring ${fin ? 'fin' : pct === 100 && total ? 'full' : ''}" style="--p:${pct * 3.6}deg"><span>${pct}%</span></span>`;
 
   // --- Piezas de un regalo ---
   const stKind = g => g.status === 'online' ? 'buy' : isDone(g) ? 'done' : g.status === 'idea' ? 'idea' : 'none';
