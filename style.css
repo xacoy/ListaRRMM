@@ -150,3 +150,23 @@ input[type=color]{width:42px;height:36px;padding:2px;border:1px solid var(--line
 @media (min-width:900px){
   @container col (min-width:540px){.glist{grid-template-columns:1fr 1fr;align-items:start}}
 }
+
+/* Terminado con una persona */
+.fin-btn.on{color:#2e9e6b;background:color-mix(in srgb,var(--ok) 55%,transparent)}
+.fin-btn.on svg{fill:color-mix(in srgb,var(--ok) 70%,transparent)}
+.col.fin{border-top-color:var(--done-bar)}
+.col.fin .col-title{text-decoration:line-through;text-decoration-thickness:1px;opacity:.75}
+.person.fin .pname span{text-decoration:line-through;text-decoration-thickness:1px;opacity:.75}
+.col.fin .glist,.person.fin .gift{opacity:.8}
+
+/* Resumen de pendientes */
+.pending{margin:0 16px 12px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh)}
+.pending summary{cursor:pointer;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;padding:10px 14px;list-style:none}
+.pending summary::-webkit-details-marker{display:none}
+.pending summary span{color:var(--muted);font-size:.85rem}
+.pending ul{list-style:none;margin:0;padding:0 8px 8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:6px}
+.prow{--c:var(--accent);width:100%;text-align:left;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;border-radius:12px;border:0;border-left:6px solid var(--c);background:color-mix(in srgb,var(--c) 10%,var(--card));padding:7px 10px}
+.prow em{font-style:normal;font-size:.75rem;background:var(--idea);color:var(--idea-ink);border-radius:999px;padding:0 8px;font-weight:700}
+.pidea{flex-basis:100%;color:var(--muted);font-size:.8rem;word-break:break-word}
+.flash{animation:flash 1.5s}
+@keyframes flash{30%{box-shadow:0 0 0 3px var(--accent)}}

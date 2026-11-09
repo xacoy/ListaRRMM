@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lista de Reyes</title>
 <script>try{if(localStorage.getItem("lista-reyes-theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
-<link rel="stylesheet" href="style.css?v=24">
+<link rel="stylesheet" href="style.css?v=25">
 </head>
 <body>
 <header class="top">
@@ -51,6 +51,8 @@
   <span>👋 Toca el lápiz de cada ficha para ponerle nombre. En <b>☰ Menú → Quién compra</b> pones vuestros nombres.</span>
   <button id="tip-ok" class="ghost">Entendido</button>
 </div>
+
+<div id="pending" class="pending" hidden></div>
 
 <main id="board" class="board"></main>
 
@@ -116,6 +118,6 @@
 </dialog>
 
 <div id="toast" class="toast" hidden></div>
-<script src="app.js?v=24"></script>
+<script src="app.js?v=25"></script>
 </body>
 </html>

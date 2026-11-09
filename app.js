@@ -137,8 +137,11 @@
   const svg = p => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
   const ICON = {
     edit: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
-    chev: svg('<path d="m6 9 6 6 6-6"/>')
+    chev: svg('<path d="m6 9 6 6 6-6"/>'),
+    check: svg('<circle cx="12" cy="12" r="9"/><path d="m8 12.5 3 3 5-6"/>')
   };
+  // Marca de «ya hemos terminado con esta persona» (se sincroniza como el resto de datos).
+  const finBtn = (o, sm) => `<button class="ibtn fin-btn ${sm ? 'sm' : ''} ${o.fin ? 'on' : ''}" data-act="toggle-fin" aria-pressed="${!!o.fin}" title="${o.fin ? 'Terminado: pulsa para reabrir' : 'Marcar como terminado'}" aria-label="${o.fin ? 'Terminado: pulsa para reabrir' : 'Marcar como terminado'}">${ICON.check}</button>`;
   const editBtn = (act, label, sm) => `<button class="ibtn ${sm ? 'sm' : ''}" data-act="${act}" title="${label}" aria-label="${label}">${ICON.edit}</button>`;
 
   // --- Piezas de un regalo ---
@@ -171,8 +174,8 @@
       <div class="controls">${catsHtml(g)}${statusHtml(g)}</div></div>`;
   }
 
-  const head = (id, min, name, editAct, editLabel) =>
-    `<div class="col-head"><button class="ibtn chev ${min ? 'closed' : ''}" data-act="toggle-col" title="${min ? 'Mostrar' : 'Minimizar'}" aria-label="${min ? 'Mostrar' : 'Minimizar'}" aria-expanded="${!min}">${ICON.chev}</button><button class="col-title" data-act="toggle-col">${esc(name)}</button>${editBtn(editAct, editLabel)}</div>`;
+  const head = (id, min, name, editAct, editLabel, fin) =>
+    `<div class="col-head"><button class="ibtn chev ${min ? 'closed' : ''}" data-act="toggle-col" title="${min ? 'Mostrar' : 'Minimizar'}" aria-label="${min ? 'Mostrar' : 'Minimizar'}" aria-expanded="${!min}">${ICON.chev}</button><button class="col-title" data-act="toggle-col">${esc(name)}</button>${fin ? finBtn(fin) : ''}${editBtn(editAct, editLabel)}</div>`;
   const banner = (all, extra) => {
     const done = all.filter(isDone).length, bought = all.filter(isBought).length;
     const pct = all.length ? Math.round(done / all.length * 100) : 0;
@@ -198,8 +201,8 @@
       const all = gifts.filter(g => g.child === ch.id);
       const shown = all.filter(matches);
       const min = collapsed.has(ch.id);
-      return `<section class="col ${min ? 'collapsed' : ''}" data-child="${ch.id}" style="--c:${colorOf(ch, i)}">
-        ${head(ch.id, min, ch.name, 'edit-child', 'Editar ficha')}
+      return `<section class="col ${min ? 'collapsed' : ''} ${ch.fin ? 'fin' : ''}" data-child="${ch.id}" style="--c:${colorOf(ch, i)}">
+        ${head(ch.id, min, ch.name, 'edit-child', 'Editar ficha', ch)}
         ${banner(all, '')}
         ${min ? '' : `${shown.length ? `<div class="glist">${shown.map(g => giftHtml(g)).join('')}</div>` : `<div class="empty">${all.length ? 'Nada con este filtro' : 'Aún no hay regalos'}</div>`}
         <button class="add" data-act="add">＋ Añadir regalo</button>`}
@@ -214,8 +217,8 @@
       const min = collapsed.has(f.id);
       const body = members.map(p => {
         const mine = all.filter(g => g.child === p.id), shown = mine.filter(matches);
-        return `<div class="person" data-person="${p.id}">
-          <div class="pname"><span>${esc(p.name)}</span><small>${plural(mine.length, 'regalo', 'regalos')}</small>${editBtn('edit-person', 'Editar persona', true)}</div>
+        return `<div class="person ${p.fin ? 'fin' : ''}" data-person="${p.id}">
+          <div class="pname"><span>${esc(p.name)}</span><small>${plural(mine.length, 'regalo', 'regalos')}</small>${finBtn(p, true)}${editBtn('edit-person', 'Editar persona', true)}</div>
           ${shown.map(g => giftHtml(g, true)).join('')}
           <button class="linkbtn" data-act="add">＋ Añadir regalo</button>
         </div>`;
@@ -227,11 +230,47 @@
         <button class="add" data-act="add-person">＋ Añadir persona</button>`}
       </section>`;
     });
+    renderPending(gifts);
     $('#board').innerHTML = sec('Niños', 'add-child', '＋ Niño') + `<div class="grid">${kids.join('')}</div>` +
       sec('Familias', 'add-family', '＋ Familia') + `<div class="grid fams">${fams.join('')}</div>`;
     restoreScroll(y, [120]);
     requestAnimationFrame(() => { board.style.minHeight = ''; restoreScroll(y, []); });
   }
+
+  // --- Resumen de pendientes (arriba): quién no está terminado y qué ideas faltan por comprar ---
+  let pendingOpen = true;
+  const isIdea = g => !g.status || g.status === 'idea';
+  function renderPending(gifts) {
+    const box = $('#pending');
+    const famName = id => live(state.families).find(f => f.id === id)?.name || '';
+    const owners = [
+      ...live(state.children).map((o, i) => ({ o, id: o.id, color: colorOf(o, i), label: o.name })),
+      ...live(state.people).filter(p => live(state.families).some(f => f.id === p.family))
+        .map(o => ({ o, id: o.id, color: colorOf(live(state.families).find(f => f.id === o.family), 4), label: `${o.name} · ${famName(o.family)}` }))
+    ];
+    if (!owners.length) { box.hidden = true; return; }
+    const open = owners.filter(x => !x.o.fin);
+    const ideas = open.reduce((n, x) => n + gifts.filter(g => g.child === x.id && isIdea(g)).length, 0);
+    const rows = open.map(x => {
+      const idea = gifts.filter(g => g.child === x.id && isIdea(g));
+      const total = gifts.filter(g => g.child === x.id).length;
+      const info = idea.length ? `<span class="pidea">${idea.map(g => esc(g.name)).join(' · ')}</span>`
+        : !total ? '<span class="pidea">Aún sin regalos</span>' : '<span class="pidea">Sin ideas pendientes</span>';
+      return `<li><button class="prow" data-goto="${x.id}" style="--c:${x.color}"><b>${esc(x.label)}</b>${idea.length ? `<em>💡 ${idea.length}</em>` : ''}${info}</button></li>`;
+    }).join('');
+    box.hidden = false;
+    box.innerHTML = `<details ${pendingOpen ? 'open' : ''}><summary><b>📝 Pendiente</b>
+      <span>${open.length ? `${plural(open.length, 'persona', 'personas')} sin terminar · ${plural(ideas, 'idea', 'ideas')}` : '🎉 ¡Todo terminado!'}</span></summary>
+      ${open.length ? `<ul>${rows}</ul>` : ''}</details>`;
+  }
+  $('#pending').addEventListener('toggle', e => { pendingOpen = e.target.open; }, true);
+  $('#pending').addEventListener('click', e => {
+    const b = e.target.closest('[data-goto]'); if (!b) return;
+    const id = b.dataset.goto, p = state.people.find(x => x.id === id);
+    if (collapsed.has(id) || (p && collapsed.has(p.family))) { collapsed.delete(id); if (p) collapsed.delete(p.family); saveCollapsed(); render(); }
+    const el = document.querySelector(`[data-child="${id}"],[data-person="${id}"]`);
+    if (el) { scrollToken++; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1500); }
+  });
 
   // --- Aviso de primera vez (solo en este dispositivo) ---
   const TIP_KEY = 'lista-reyes-tip';
@@ -268,6 +307,12 @@
     const col = btn.closest('.col');
     const colId = col.dataset.child || col.dataset.family;
     const personId = btn.closest('.person')?.dataset.person;
+    if (act === 'toggle-fin') {
+      const o = state.children.find(x => x.id === (personId || colId)) || state.people.find(x => x.id === personId);
+      if (!o) return;
+      o.fin = !o.fin; touch(o); save(); render();
+      return toast(o.fin ? `Terminado con ${o.name} ✔` : `${o.name} vuelve a pendiente`, () => { o.fin = !o.fin; touch(o); save(); render(); });
+    }
     if (act === 'toggle-col') {
       collapsed.has(colId) ? collapsed.delete(colId) : collapsed.add(colId);
       saveCollapsed(); return render();
