@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = '2.0.0.0844';
+  const VERSION = '2.1.0.0846';
   const KEY = 'lista-reyes-v1';
   const SYNC_KEY = 'lista-reyes-sync';
   // URL de la Realtime Database de Firebase (sin barra final), p. ej. https://xxxx-default-rtdb.europe-west1.firebasedatabase.app
@@ -199,7 +199,7 @@
     } else {
       body = GROUPS.map(([t, f]) => { const it = shown.filter(f); return it.length ? `<div class="sh"><span>${t}</span><span>${it.length}</span></div>${it.map(giftRow).join('')}` : ''; }).join('');
     }
-    return `<div class="tabs" id="tabs">${tabs}</div>${hero}${segs}${body}`;
+    return `<div class="gwrap"><div class="tabs" id="tabs">${tabs}</div><div class="gmain">${hero}${segs}${body}</div></div>`;
   }
 
   // --- Pantalla «Resumen»: qué falta ---
@@ -216,7 +216,7 @@
         <span class="orow">${ring(i.pct, i.x.color)}<span class="hgrow"><span class="hname">${esc(i.x.name)}${i.x.fin ? ' ✓' : ''}</span><span class="mt">${i.x.fam ? esc(i.x.fam) + ' · ' : ''}${i.done} de ${i.gs.length} listos</span></span><span class="chev">›</span></span>
         ${!i.x.fin && (chips || !i.gs.length) ? `<span class="chips2">${chips || '<span class="mt">Aún sin regalos</span>'}</span>` : ''}</button>`;
     };
-    return big + [...open, ...info.filter(i => i.x.fin)].map(card).join('');
+    return `<div class="home">${big}${[...open, ...info.filter(i => i.x.fin)].map(card).join('')}</div>`;
   }
 
   // --- Pantalla «Compras»: lista de lo que falta y lo comprado ---
@@ -233,7 +233,7 @@
         <div class="gbody" data-act="edit"><div class="nm">${esc(g.name)}</div>${giftMeta(g, 'para ' + esc(o.name))}</div>
         ${isIdea(g) ? `<div class="qbtns"><button data-act="setst" data-s="store">Tienda</button><button data-act="setst" data-s="online">Online</button></div>` : stBtn(g)}</div>`;
     }).join('');
-    return `<div class="fchips">${chips}</div>${rows || `<div class="empty">${shopFilter === 'pending' ? '🎉 No queda nada por comprar' : 'Nada por aquí'}</div>`}`;
+    return `<div class="fchips">${chips}</div>${rows ? `<div class="shoplist">${rows}</div>` : `<div class="empty">${shopFilter === 'pending' ? '🎉 No queda nada por comprar' : 'Nada por aquí'}</div>`}`;
   }
 
   // --- Dibujar ---
