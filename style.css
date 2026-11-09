@@ -55,7 +55,7 @@ select{padding:7px 10px;border-radius:12px;border:1px solid var(--line);backgrou
 .tab .av{width:26px;height:26px;font-size:.75rem}
 
 /* Cabecera de persona */
-.hero{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:20px;padding:12px 8px 12px 12px;box-shadow:var(--sh);margin-bottom:10px}
+.hero{background:var(--card);border-radius:20px;padding:12px 8px 12px 12px;box-shadow:var(--sh);margin-bottom:10px}
 .hero.fin{background:color-mix(in srgb,var(--ok) 12%,var(--card))}
 .hgrow{flex:1;min-width:0;display:flex;flex-direction:column}
 .hname{font-size:1.1rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -254,3 +254,35 @@ body.has-quick .version{bottom:calc(var(--nav-h) + var(--quick-h) - 6px)}
 body.has-quick .version{bottom:calc(var(--nav-h) + var(--quick-h) + 2px)}
 @media (min-width:768px){.version,body.has-quick .version{bottom:6px}}
 .ichip.ship{background:var(--blb);color:var(--bl)}
+
+/* Icono del tipo de regalo + estado a la derecha */
+.hrow{display:flex;align-items:center;gap:12px}
+.tile{--tc:var(--accent);width:46px;height:46px;border-radius:14px;flex:none;display:grid;place-items:center;font-size:1.5rem;background:linear-gradient(135deg,color-mix(in srgb,var(--tc) 38%,var(--card)),color-mix(in srgb,var(--tc) 62%,var(--card)))}
+.gr{padding:10px 12px 10px 10px}
+.kc .gr{padding:8px 8px 8px 8px}
+.kc .tile{width:38px;height:38px;font-size:1.2rem;border-radius:12px}
+.gbody:focus-visible{outline-offset:4px;border-radius:8px}
+.tag{font-size:.7rem;font-weight:700;border-radius:999px;padding:0 9px;background:var(--accent-soft);color:var(--accent)}
+.tag.y{background:var(--idb);color:var(--id)}
+
+/* Ficha de la persona */
+.prof{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:10px 8px 2px 0;padding-top:10px;border-top:1px solid var(--line);font-size:.88rem}
+.prof>span{color:var(--muted);white-space:nowrap}
+.prof>div{word-break:break-word}
+#owner-prof .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* Aviso de duplicado */
+.warn{background:var(--idb);color:var(--id);border-radius:12px;padding:8px 12px;font-size:.85rem;font-weight:600;margin:-4px 0 10px}
+
+/* Emoji de categoría */
+input.emo{width:56px!important;text-align:center;flex:none;padding-left:4px!important;padding-right:4px!important}
+.catrow input.emo,.catform input.emo{width:56px;flex:none}
+
+/* Banner del Resumen con cuenta atrás */
+.big .bgrow{flex:1;min-width:0}
+.big b{font-size:1.1rem}
+.big span{display:block}
+.bbar{display:block;height:5px;border-radius:99px;background:#ffffff40;margin-top:6px;overflow:hidden}
+.bbar u{display:block;height:100%;background:#ffd34d;border-radius:99px;text-decoration:none}
+
+.catform{flex-wrap:wrap}.catform input:first-child{flex:1 1 100%}.catform .primary{margin-left:auto}

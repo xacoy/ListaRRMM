@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lista de Reyes</title>
 <script>try{if(localStorage.getItem("lista-reyes-theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
-<link rel="stylesheet" href="style.css?v=28">
+<meta name="theme-color" content="#5b5bd6">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Reyes">
+<link rel="stylesheet" href="style.css?v=29">
 </head>
 <body>
 <header class="top">
@@ -30,6 +37,7 @@
         <button id="btn-export">⬇️ Exportar copia</button>
         <label class="btn">⬆️ Importar copia<input id="file-import" type="file" accept="application/json" hidden></label>
         <hr>
+        <button id="btn-install" hidden>📲 Instalar como app</button>
         <button id="btn-theme">🌙 Tema oscuro</button>
       </div>
     </div>
@@ -54,6 +62,7 @@
   <form method="dialog" id="form-gift">
     <h2 id="gift-title">Nuevo regalo</h2>
     <label>Regalo <input name="name" required maxlength="120"></label>
+    <div id="dup-warn" class="warn" hidden></div>
     <div class="lbl">Estado</div>
     <div id="gift-status" class="seg">
       <button type="button" data-s="idea"><b>💡</b>Idea</button>
@@ -83,6 +92,12 @@
   <form id="form-child" method="dialog">
     <h2 id="owner-title">Editar ficha</h2>
     <label>Nombre <input name="name" required maxlength="30"></label>
+    <div id="owner-prof">
+      <div class="two"><label>Edad <input name="age" maxlength="12" placeholder="7"></label><label>Calzado <input name="shoe" maxlength="12" placeholder="32"></label></div>
+      <label>Talla de ropa <input name="size" maxlength="20" placeholder="8 años"></label>
+      <label>Le gusta <input name="likes" maxlength="120" placeholder="Dinosaurios, Lego…"></label>
+      <label>Evitar / ya tiene <input name="avoid" maxlength="120" placeholder="Peluches…"></label>
+    </div>
     <label id="owner-color">Color <input name="color" type="color" value="#9ccaf5"></label>
     <div class="row">
       <button type="button" id="child-delete" class="danger">🗑️ Eliminar</button>
@@ -105,6 +120,7 @@
   <form id="form-cat" class="catform">
     <input name="name" placeholder="Nueva categoría" required maxlength="30">
     <input name="color" type="color" value="#7c5cff" aria-label="Color">
+    <input name="icon" class="emo" maxlength="4" placeholder="🎁" aria-label="Icono">
     <button class="primary">Añadir</button>
   </form>
   <div class="row"><button id="cats-close" class="ghost">Cerrar</button></div>
@@ -141,6 +157,6 @@
 
 <div id="version" class="version" aria-hidden="true"></div>
 <div id="toast" class="toast" hidden></div>
-<script src="app.js?v=28"></script>
+<script src="app.js?v=29"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = '2.3.0.0859';
+  const VERSION = '3.0.1.0909';
   const KEY = 'lista-reyes-v1';
   const SYNC_KEY = 'lista-reyes-sync';
   // URL de la Realtime Database de Firebase (sin barra final), p. ej. https://xxxx-default-rtdb.europe-west1.firebasedatabase.app
@@ -64,11 +64,11 @@
       { id: uid(), name: 'Niño 2', color: PALETTE[1], c: 2, u: 1 }
     ],
     categories: [
-      { id: 'juguetes', name: 'Juguetes', color: PALETTE[0], c: 1, u: 1 },
-      { id: 'ropa', name: 'Ropa', color: PALETTE[4], c: 2, u: 1 },
-      { id: 'libros', name: 'Libros', color: PALETTE[1], c: 3, u: 1 },
-      { id: 'juegos', name: 'Juegos', color: PALETTE[2], c: 4, u: 1 },
-      { id: 'otros', name: 'Otros', color: '#cdc9d6', c: 5, u: 1 }
+      { id: 'juguetes', name: 'Juguetes', color: PALETTE[0], icon: '🧸', c: 1, u: 1 },
+      { id: 'ropa', name: 'Ropa', color: PALETTE[4], icon: '👕', c: 2, u: 1 },
+      { id: 'libros', name: 'Libros', color: PALETTE[1], icon: '📚', c: 3, u: 1 },
+      { id: 'juegos', name: 'Juegos', color: PALETTE[2], icon: '🎮', c: 4, u: 1 },
+      { id: 'otros', name: 'Otros', color: '#cdc9d6', icon: '🎁', c: 5, u: 1 }
     ],
     gifts: [],
     families: defaultFamilies(),
@@ -157,6 +157,25 @@
   // Anillo de progreso: mismo color para todos (acento); amarillo al 100 % (todo comprado); verde si está terminada.
   const ring = (pct, color, fin, total = 1) => `<span class="ring ${fin ? 'fin' : pct === 100 && total ? 'full' : ''}" style="--p:${pct * 3.6}deg"><span>${pct}%</span></span>`;
 
+  // Icono del tipo de regalo: el de su categoría (o uno por defecto según el nombre).
+  const ICON_GUESS = [[/juguet/i, '🧸'], [/ropa|camis|vest|abrig/i, '👕'], [/libro|cuento|lectur/i, '📚'], [/juego|consola/i, '🎮'], [/calzad|zapat/i, '👟'], [/deport/i, '⚽'], [/tecno|electr/i, '🎧'], [/cole|escol/i, '🎒'], [/otro/i, '🎁']];
+  const catIcon = c => c.icon || (ICON_GUESS.find(([r]) => r.test(c.name)) || [0, '🏷️'])[1];
+  const giftTile = g => {
+    const c = g.cats.map(cat).find(Boolean);
+    return `<span class="tile" style="${c ? `--tc:${c.color}` : ''}" aria-hidden="true">${esc(c ? catIcon(c) : '🎁')}</span>`;
+  };
+
+  // Duplicados: mismo nombre (sin mayúsculas, tildes ni signos) en cualquier persona.
+  const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const dupsOf = (name, exceptId, owner) => {
+    const n = norm(name); if (!n) return [];
+    return live(state.gifts).filter(g => g.id !== exceptId && norm(g.name) === n && ownerName(g.child));
+  };
+  const dupText = (list, owner) => {
+    const names = [...new Set(list.map(g => g.child === owner ? 'esta misma lista' : 'la lista de ' + ownerName(g.child)))];
+    return names.join(' y ');
+  };
+
   // --- Piezas de un regalo ---
   const stKind = g => g.status === 'online' ? 'buy' : isDone(g) ? 'done' : g.status === 'idea' ? 'idea' : 'none';
   const ST_ICON = { none: '', idea: '💡', buy: '📦', done: '✓' };
@@ -169,11 +188,12 @@
     const link = g.link && /^https?:\/\//i.test(g.link) ? `<a href="${esc(g.link)}" target="_blank" rel="noopener">enlace</a>` : '';
     const bits = [lead, g.store ? '🛒 ' + esc(g.store) : '', buyer ? '🛍️ ' + esc(buyer.name) : '', g.notes ? esc(g.notes) : '', link].filter(Boolean).join(' · ');
     const cats = g.cats.map(cat).filter(Boolean).map(c => `<span class="pill" style="background:${c.color};color:${ink(c.color)}">${esc(c.name)}</span>`).join('');
-    return (bits ? `<div class="mt">${bits}</div>` : '') + (cats ? `<div class="pills">${cats}</div>` : '');
+    const dup = dupsOf(g.name, g.id);
+    const dupTag = dup.length ? `<span class="tag y">⚠️ También en ${[...new Set(dup.map(d => d.child === g.child ? 'esta lista' : ownerName(d.child)))].map(esc).join(', ')}</span>` : '';
+    return (bits ? `<div class="mt">${bits}</div>` : '') + (cats || dupTag ? `<div class="pills">${cats}${dupTag}</div>` : '');
   }
-  const giftRow = g => `<div class="gr ${stKind(g)}" data-id="${g.id}">${stBtn(g)}
-    <div class="gbody" data-act="edit"><div class="nm">${esc(g.name)}</div>${giftMeta(g)}</div>
-    <button class="ibtn sm" data-act="edit" title="Editar regalo" aria-label="Editar regalo">${ICON.edit}</button></div>`;
+  const giftRow = g => `<div class="gr ${stKind(g)}" data-id="${g.id}">${giftTile(g)}
+    <div class="gbody" data-act="edit" role="button" tabindex="0" aria-label="Editar ${esc(g.name)}"><div class="nm">${esc(g.name)}</div>${giftMeta(g)}</div>${stBtn(g)}</div>`;
 
   const GROUPS = [['Por comprar', g => isIdea(g)], ['En camino', g => g.status === 'online'], ['Listos', isDone]];
 
@@ -191,10 +211,13 @@
       return `${label}<button class="tab ${x.id === cur.id ? 'on' : ''}" data-act="goto" data-id="${x.id}">${avatar(x, true)}<span>${esc(x.name)}</span>${x.fin ? '<i class="ok">✓</i>' : n ? `<i>${n}</i>` : ''}</button>`;
     }).join('') + `<button class="tab plus" data-act="add-owner" aria-label="Añadir persona">＋</button>`;
     const sub = `${cur.fam ? esc(cur.fam) + ' · ' : ''}${done} de ${gs.length} listos · ${plural(ideas.length, 'idea', 'ideas')} por comprar`;
-    const hero = `<div class="hero ${cur.fin ? 'fin' : ''}">${ring(pct, cur.color, cur.fin, gs.length)}
-      <div class="hgrow"><div class="hname">${esc(cur.name)}</div><div class="mt">${sub}</div></div>
+    const o = cur.o, age = o.age ? (/^\d+$/.test(String(o.age).trim()) ? `${String(o.age).trim()} años` : esc(o.age)) : '';
+    const prof = [['👕 Talla', [o.size, o.shoe && 'calzado ' + o.shoe].filter(Boolean).map(esc).join(' · ')], ['❤️ Le gusta', esc(o.likes || '')], ['🚫 Evitar', esc(o.avoid || '')]].filter(([, v]) => v);
+    const hero = `<div class="hero ${cur.fin ? 'fin' : ''}"><div class="hrow">${ring(pct, cur.color, cur.fin, gs.length)}
+      <div class="hgrow"><div class="hname">${esc(cur.name)}${age ? ' · ' + age : ''}</div><div class="mt">${sub}</div></div>
       <button class="finbtn ${cur.fin ? 'on' : ''}" data-act="fin" aria-pressed="${cur.fin}">${cur.fin ? '✓ Terminado' : 'Terminar'}</button>
-      <button class="ibtn" data-act="edit-owner" title="Editar" aria-label="Editar persona">${ICON.edit}</button></div>`;
+      <button class="ibtn" data-act="edit-owner" title="Editar ficha" aria-label="Editar ficha de la persona">${ICON.edit}</button></div>
+      ${prof.length ? `<div class="prof">${prof.map(([k, v]) => `<span>${k}</span><div>${v}</div>`).join('')}</div>` : ''}</div>`;
     const segs = `<div class="segs"><button data-act="mode" data-m="list" class="${ui.mode === 'list' ? 'on' : ''}">☰ Lista</button><button data-act="mode" data-m="cols" class="${ui.mode === 'cols' ? 'on' : ''}">▦ Columnas</button></div>`;
     let body;
     if (!gs.length) body = `<div class="empty">Aún no hay regalos para ${esc(cur.name)}.<br><span class="mt">Escribe abajo el nombre de uno y pulsa ＋</span></div>`;
@@ -207,14 +230,26 @@
     return `<div class="gwrap"><div class="tabs" id="tabs">${tabs}</div><div class="gmain">${hero}${segs}${body}</div></div>`;
   }
 
+  // --- Cuenta atrás hasta el 6 de enero ---
+  function reyes() {
+    const d = new Date(), t0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    let k = new Date(d.getFullYear(), 0, 6);
+    if (k < t0) k = new Date(d.getFullYear() + 1, 0, 6);
+    return { days: Math.round((k - t0) / 86400000), date: '6 de enero' };
+  }
+
   // --- Pantalla «Resumen»: qué falta ---
   function homeHtml(os, gifts) {
     if (!os.length) return `<div class="empty">Aún no hay personas.<br><button class="primary" data-act="add-owner">＋ Añadir persona</button></div>`;
     const info = os.map(x => ({ x, ...stats(x.id, gifts) }));
     const open = info.filter(i => !i.x.fin), ideas = open.reduce((n, i) => n + i.ideas.length, 0), ship = open.reduce((n, i) => n + i.ship.length, 0);
-    const big = open.length
-      ? `<div class="big"><i>🎁</i><div><b>${plural(ideas, 'por comprar', 'por comprar')}</b><span>${ship} en camino · ${plural(open.length, 'persona', 'personas')} sin terminar</span></div></div>`
-      : `<div class="big ok"><div><b>¡Todo terminado!</b><span>Ya has acabado con todas las personas</span></div><i>🎉</i></div>`;
+    const all = info.reduce((n, i) => n + i.gs.length, 0), ready = info.reduce((n, i) => n + i.done, 0);
+    const rk = reyes(), gpct = all ? Math.round(ready / all * 100) : 0;
+    const when = rk.days === 0 ? '¡Hoy son los Reyes! 👑' : rk.days === 1 ? 'Mañana son los Reyes 👑' : `${rk.days} días para los Reyes`;
+    const line = open.length
+      ? `${ready} de ${all} listos · ${ideas} por comprar · ${ship} en camino`
+      : `6 de enero · ¡Ya has terminado con todas las personas!`;
+    const big = `<div class="big ${open.length ? '' : 'ok'}"><i>${open.length ? '🎁' : '🎉'}</i><div class="bgrow"><b>${when}</b><span>${line}</span><em class="bbar"><u style="width:${gpct}%"></u></em></div></div>`;
     const card = i => {
       const some = (list, cls, ic) => list.slice(0, 4).map(g => `<span class="ichip ${cls}">${ic} ${esc(g.name)}</span>`).join('') + (list.length > 4 ? `<span class="ichip ${cls}">+${list.length - 4}</span>` : '');
       const chips = some(i.ideas, '', '💡') + some(i.ship, 'ship', '📦');
@@ -351,6 +386,8 @@
     const inp = $('#quick-name'), name = inp.value.trim();
     if (!ui.owner) return;
     if (!name) return openGift(ui.owner, null);
+    const dup = dupsOf(name, null);
+    if (dup.length && !confirm(`⚠️ «${dup[0].name}» ya está en ${dupText(dup, ui.owner)}.\n\n¿Añadirlo igualmente?`)) return;
     state.gifts.push(mk({ id: uid(), child: ui.owner, name, store: '', link: '', notes: '', status: 'idea', buyer: '', cats: [] }));
     inp.value = ''; save(); render();
   });
@@ -377,6 +414,12 @@
       live(state.buyers).map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('');
     form.buyer.value = val;
   }
+  function showDup() {
+    const w = $('#dup-warn'), d = dupsOf(form.name.value, editing?.giftId);
+    w.hidden = !d.length;
+    if (d.length) w.textContent = `⚠️ «${d[0].name}» ya está en ${dupText(d, editing.ownerId)}. ¿Es un duplicado?`;
+  }
+  form.name.addEventListener('input', showDup);
   const buyersUnedited = () => live(state.buyers).every(b => (b.u || 0) <= 1);
   function openGift(ownerId, g) {
     editing = { ownerId, giftId: g?.id || null };
@@ -384,6 +427,7 @@
     $('#gift-title').textContent = g ? g.name : 'Nuevo regalo para ' + ownerName(ownerId);
     form.reset();
     fillBuyers(g?.buyer || '');
+    showDup();
     $('#buyer-names').hidden = !buyersUnedited();
     $('#more').open = !!(g && (g.store || g.link || g.notes));
     $('#gift-delete').hidden = !g;
@@ -392,6 +436,7 @@
       form.notes.value = g.notes || '';
     }
     setFormStatus(g?.status || 'idea');
+    showDup();
     renderPick(); dlg.showModal();
   }
   $('#gift-cancel').onclick = () => dlg.close();
@@ -478,6 +523,8 @@
     $('#owner-title').textContent = OWNER[kind].title;
     $('#owner-color').hidden = kind === 'person';
     fch.name.value = item.name;
+    $('#owner-prof').hidden = kind === 'family';
+    ['age', 'size', 'shoe', 'likes', 'avoid'].forEach(k => { fch[k].value = item[k] || ''; });
     if (kind !== 'person') fch.color.value = colorOf(item, kind === 'family' ? i + 4 : i);
     dch.showModal();
     fch.name.select();
@@ -488,6 +535,7 @@
     e.preventDefault();
     const { kind, item } = editingOwner;
     item.name = fch.name.value.trim() || item.name;
+    if (kind !== 'family') ['age', 'size', 'shoe', 'likes', 'avoid'].forEach(k => { item[k] = fch[k].value.trim(); });
     if (kind !== 'person') item.color = fch.color.value;
     touch(item); save(); render(); dch.close();
   });
@@ -513,7 +561,7 @@
   const dc = $('#dlg-cats');
   function renderCats() {
     $('#cat-list').innerHTML = live(state.categories).map(c => `<div class="catrow" data-id="${c.id}">
-      <input type="color" value="${c.color}" data-f="color"><input type="text" value="${esc(c.name)}" data-f="name" maxlength="30">
+      <input type="color" value="${c.color}" data-f="color"><input type="text" value="${esc(catIcon(c))}" data-f="icon" maxlength="4" class="emo" aria-label="Icono"><input type="text" value="${esc(c.name)}" data-f="name" maxlength="30">
       <button class="icon ghost" data-del title="Borrar">🗑️</button></div>`).join('');
   }
   $('#btn-cats').onclick = () => { renderCats(); dc.showModal(); };
@@ -522,7 +570,7 @@
   $('#cat-list').addEventListener('input', e => {
     const f = e.target.dataset.f; if (!f) return;
     const c = cat(e.target.closest('.catrow').dataset.id);
-    if (f === 'name') { if (!e.target.value.trim()) return; c.name = e.target.value.trim(); } else c.color = e.target.value;
+    if (f === 'name') { if (!e.target.value.trim()) return; c.name = e.target.value.trim(); } else if (f === 'icon') c.icon = e.target.value.trim(); else c.color = e.target.value;
     touch(c); save();
   });
   $('#cat-list').addEventListener('click', e => {
@@ -535,7 +583,7 @@
   $('#form-cat').addEventListener('submit', e => {
     e.preventDefault();
     const f = e.target;
-    state.categories.push(mk({ id: uid(), name: f.name.value.trim(), color: f.color.value }));
+    state.categories.push(mk({ id: uid(), name: f.name.value.trim(), color: f.color.value, icon: f.icon.value.trim() }));
     f.reset(); save(); renderCats();
   });
 
@@ -557,6 +605,19 @@
     if (!b || !e.target.value.trim()) return;
     b.name = e.target.value.trim(); touch(b); save();
   });
+
+  // --- Instalar como app y funcionamiento sin conexión ---
+  let installEv = null;
+  const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if (!isStandalone) $('#btn-install').hidden = false;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; });
+  window.addEventListener('appinstalled', () => { $('#btn-install').hidden = true; toast('App instalada ✔'); });
+  $('#btn-install').onclick = async () => {
+    if (installEv) { installEv.prompt(); installEv = null; return; }
+    alert('Para instalarla como app:\n\n• iPhone/iPad (Safari): botón Compartir → «Añadir a pantalla de inicio».\n• Android/PC (Chrome o Edge): menú ⋮ → «Instalar aplicación» o «Añadir a pantalla de inicio».');
+  };
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
+  window.addEventListener('online', () => { if (syncId) sync(); });
 
   // --- Menú superior y tema ---
   const menu = $('#menu-panel'), menuBtn = $('#btn-menu');
