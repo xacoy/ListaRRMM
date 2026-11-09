@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = '2.2.2.0854';
+  const VERSION = '2.3.0.0859';
   const KEY = 'lista-reyes-v1';
   const SYNC_KEY = 'lista-reyes-sync';
   // URL de la Realtime Database de Firebase (sin barra final), p. ej. https://xxxx-default-rtdb.europe-west1.firebasedatabase.app
@@ -151,7 +151,7 @@
   }
   function stats(id, gifts) {
     const gs = gifts.filter(g => g.child === id), done = gs.filter(isDone).length;
-    return { gs, done, ideas: gs.filter(isIdea), pct: gs.length ? Math.round(done / gs.length * 100) : 0 };
+    return { gs, done, ideas: gs.filter(isIdea), ship: gs.filter(g => g.status === 'online'), pct: gs.length ? Math.round(done / gs.length * 100) : 0 };
   }
   const avatar = (x, sm) => `<span class="av ${sm ? 'sm' : ''}" style="background:${x.color};color:${ink(x.color)}">${esc((x.name || '?').trim().charAt(0).toUpperCase())}</span>`;
   // Anillo de progreso: mismo color para todos (acento); amarillo al 100 % (todo comprado); verde si está terminada.
@@ -211,12 +211,13 @@
   function homeHtml(os, gifts) {
     if (!os.length) return `<div class="empty">Aún no hay personas.<br><button class="primary" data-act="add-owner">＋ Añadir persona</button></div>`;
     const info = os.map(x => ({ x, ...stats(x.id, gifts) }));
-    const open = info.filter(i => !i.x.fin), ideas = open.reduce((n, i) => n + i.ideas.length, 0);
+    const open = info.filter(i => !i.x.fin), ideas = open.reduce((n, i) => n + i.ideas.length, 0), ship = open.reduce((n, i) => n + i.ship.length, 0);
     const big = open.length
-      ? `<div class="big"><div><b>${plural(ideas, 'idea', 'ideas')}</b><span>por comprar · ${plural(open.length, 'persona', 'personas')} sin terminar</span></div><i>🎁</i></div>`
+      ? `<div class="big"><i>🎁</i><div><b>${plural(ideas, 'por comprar', 'por comprar')}</b><span>${ship} en camino · ${plural(open.length, 'persona', 'personas')} sin terminar</span></div></div>`
       : `<div class="big ok"><div><b>¡Todo terminado!</b><span>Ya has acabado con todas las personas</span></div><i>🎉</i></div>`;
     const card = i => {
-      const chips = i.ideas.slice(0, 3).map(g => `<span class="ichip">💡 ${esc(g.name)}</span>`).join('') + (i.ideas.length > 3 ? `<span class="ichip">+${i.ideas.length - 3}</span>` : '');
+      const some = (list, cls, ic) => list.slice(0, 4).map(g => `<span class="ichip ${cls}">${ic} ${esc(g.name)}</span>`).join('') + (list.length > 4 ? `<span class="ichip ${cls}">+${list.length - 4}</span>` : '');
+      const chips = some(i.ideas, '', '💡') + some(i.ship, 'ship', '📦');
       return `<button class="ocard ${i.x.fin ? 'fin' : ''}" data-act="goto" data-id="${i.x.id}">
         <span class="orow">${ring(i.pct, i.x.color, i.x.fin, i.gs.length)}<span class="hgrow"><span class="hname">${esc(i.x.name)}${i.x.fin ? ' ✓' : ''}</span><span class="mt">${i.x.fam ? esc(i.x.fam) + ' · ' : ''}${i.done} de ${i.gs.length} listos</span></span><span class="chev">›</span></span>
         ${!i.x.fin && (chips || !i.gs.length) ? `<span class="chips2">${chips || '<span class="mt">Aún sin regalos</span>'}</span>` : ''}</button>`;
