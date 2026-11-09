@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = '2.2.0.0849';
+  const VERSION = '2.2.1.0852';
   const KEY = 'lista-reyes-v1';
   const SYNC_KEY = 'lista-reyes-sync';
   // URL de la Realtime Database de Firebase (sin barra final), p. ej. https://xxxx-default-rtdb.europe-west1.firebasedatabase.app
@@ -154,7 +154,8 @@
     return { gs, done, ideas: gs.filter(isIdea), pct: gs.length ? Math.round(done / gs.length * 100) : 0 };
   }
   const avatar = (x, sm) => `<span class="av ${sm ? 'sm' : ''}" style="background:${x.color};color:${ink(x.color)}">${esc((x.name || '?').trim().charAt(0).toUpperCase())}</span>`;
-  const ring = (pct, color) => `<span class="ring" style="--p:${pct * 3.6}deg;--rc:${color}"><span>${pct}%</span></span>`;
+  // Anillo de progreso: color de la persona; amarillo al 100 % (todo comprado); verde si está terminada.
+  const ring = (pct, color, fin, total = 1) => `<span class="ring ${fin ? 'fin' : pct === 100 && total ? 'full' : ''}" style="--p:${pct * 3.6}deg;--rc:${color}"><span>${pct}%</span></span>`;
 
   // --- Piezas de un regalo ---
   const stKind = g => g.status === 'online' ? 'buy' : isDone(g) ? 'done' : g.status === 'idea' ? 'idea' : 'none';
@@ -190,7 +191,7 @@
       return `${label}<button class="tab ${x.id === cur.id ? 'on' : ''}" data-act="goto" data-id="${x.id}">${avatar(x, true)}<span>${esc(x.name)}</span>${x.fin ? '<i class="ok">✓</i>' : n ? `<i>${n}</i>` : ''}</button>`;
     }).join('') + `<button class="tab plus" data-act="add-owner" aria-label="Añadir persona">＋</button>`;
     const sub = `${cur.fam ? esc(cur.fam) + ' · ' : ''}${done} de ${gs.length} listos · ${plural(ideas.length, 'idea', 'ideas')} por comprar`;
-    const hero = `<div class="hero ${cur.fin ? 'fin' : ''}">${ring(pct, cur.color)}
+    const hero = `<div class="hero ${cur.fin ? 'fin' : ''}">${ring(pct, cur.color, cur.fin, gs.length)}
       <div class="hgrow"><div class="hname">${esc(cur.name)}</div><div class="mt">${sub}</div></div>
       <button class="finbtn ${cur.fin ? 'on' : ''}" data-act="fin" aria-pressed="${cur.fin}">${cur.fin ? '✓ Terminado' : 'Terminar'}</button>
       <button class="ibtn" data-act="edit-owner" title="Editar" aria-label="Editar persona">${ICON.edit}</button></div>`;
@@ -217,7 +218,7 @@
     const card = i => {
       const chips = i.ideas.slice(0, 3).map(g => `<span class="ichip">💡 ${esc(g.name)}</span>`).join('') + (i.ideas.length > 3 ? `<span class="ichip">+${i.ideas.length - 3}</span>` : '');
       return `<button class="ocard ${i.x.fin ? 'fin' : ''}" data-act="goto" data-id="${i.x.id}">
-        <span class="orow">${ring(i.pct, i.x.color)}<span class="hgrow"><span class="hname">${esc(i.x.name)}${i.x.fin ? ' ✓' : ''}</span><span class="mt">${i.x.fam ? esc(i.x.fam) + ' · ' : ''}${i.done} de ${i.gs.length} listos</span></span><span class="chev">›</span></span>
+        <span class="orow">${ring(i.pct, i.x.color, i.x.fin, i.gs.length)}<span class="hgrow"><span class="hname">${esc(i.x.name)}${i.x.fin ? ' ✓' : ''}</span><span class="mt">${i.x.fam ? esc(i.x.fam) + ' · ' : ''}${i.done} de ${i.gs.length} listos</span></span><span class="chev">›</span></span>
         ${!i.x.fin && (chips || !i.gs.length) ? `<span class="chips2">${chips || '<span class="mt">Aún sin regalos</span>'}</span>` : ''}</button>`;
     };
     let last = null;
