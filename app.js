@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = '1.2.0.0831';
+  const VERSION = '1.2.1.0835';
   const KEY = 'lista-reyes-v1';
   const SYNC_KEY = 'lista-reyes-sync';
   // URL de la Realtime Database de Firebase (sin barra final), p. ej. https://xxxx-default-rtdb.europe-west1.firebasedatabase.app
@@ -239,7 +239,7 @@
   }
 
   // --- Resumen de pendientes (arriba): quién no está terminado y qué ideas faltan por comprar ---
-  let pendingOpen = true;
+  let pendingOpen = false;
   const isIdea = g => !g.status || g.status === 'idea';
   function renderPending(gifts) {
     const box = $('#pending');
