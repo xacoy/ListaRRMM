@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = '1.2.1.0835';
+  const VERSION = '2.0.0.0844';
   const KEY = 'lista-reyes-v1';
   const SYNC_KEY = 'lista-reyes-sync';
   // URL de la Realtime Database de Firebase (sin barra final), p. ej. https://xxxx-default-rtdb.europe-west1.firebasedatabase.app
@@ -106,21 +106,22 @@
   const cat = id => live(state.categories).find(c => c.id === id);
   const ownerName = id => (live(state.children).find(c => c.id === id) || live(state.people).find(p => p.id === id))?.name || '';
 
-  // Fichas y familias minimizadas: preferencia de este dispositivo (no se sincroniza).
-  const COLLAPSED_KEY = 'lista-reyes-collapsed';
-  let collapsed = new Set();
-  try { collapsed = new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY)) || []); } catch {}
-  const saveCollapsed = () => { try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsed])); } catch {} };
-
-  let openCat = null; // regalo con el desplegable de categorías abierto
+  // Preferencias de este dispositivo (no se sincronizan): pantalla, persona activa y modo de lista.
+  const UI_KEY = 'lista-reyes-ui';
+  let ui = { view: 'home', owner: null, mode: 'list' };
+  try { ui = { ...ui, ...JSON.parse(localStorage.getItem(UI_KEY)) }; } catch {}
+  const saveUi = () => { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch {} };
+  let shopFilter = 'pending';
+  let filtersOpen = false;
   let editing = null; // {ownerId, giftId|null}
   let pickedCats = new Set();
 
-  function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+  const esc = s => { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML.replace(/"/g, '&quot;'); };
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
   const isBought = g => g.status === 'store' || g.status === 'online' || g.status === 'received';
   const isDone = g => g.status === 'store' || g.status === 'received';
+  const isIdea = g => !g.status || g.status === 'idea';
 
   function matches(g) {
     const st = $('#f-status').value, c = $('#f-cat').value;
@@ -129,154 +130,151 @@
     return !st || g.status === st;
   }
 
-  // Todas las categorías como selector: la elegida va rellena con ✓, las demás solo con borde.
+  // Categorías como selector en el formulario: la elegida va rellena con ✓.
   function chipHtml(c, on, attrs = '') {
     return `<button type="button" class="chip ${on ? 'on' : ''}" ${attrs} style="--cc:${c.color};--ink:${ink(c.color)}" aria-pressed="${on}">${on ? '✓ ' : ''}${esc(c.name)}</button>`;
   }
 
-  // --- Iconos (SVG de trazo fino, a juego con el estilo suave) ---
   const svg = p => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
-  const ICON = {
-    edit: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
-    chev: svg('<path d="m6 9 6 6 6-6"/>'),
-    check: svg('<circle cx="12" cy="12" r="9"/><path d="m8 12.5 3 3 5-6"/>')
-  };
-  // Marca de «ya hemos terminado con esta persona» (se sincroniza como el resto de datos).
-  const finBtn = (o, sm) => `<button class="ibtn fin-btn ${sm ? 'sm' : ''} ${o.fin ? 'on' : ''}" data-act="toggle-fin" aria-pressed="${!!o.fin}" title="${o.fin ? 'Terminado: pulsa para reabrir' : 'Marcar como terminado'}" aria-label="${o.fin ? 'Terminado: pulsa para reabrir' : 'Marcar como terminado'}">${ICON.check}</button>`;
-  const editBtn = (act, label, sm) => `<button class="ibtn ${sm ? 'sm' : ''}" data-act="${act}" title="${label}" aria-label="${label}">${ICON.edit}</button>`;
+  const ICON = { edit: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>') };
+
+  // --- Personas (niños y personas de familia) ---
+  function owners() {
+    const fams = live(state.families);
+    const kids = live(state.children).map((o, i) => ({ o, id: o.id, kind: 'child', name: o.name, color: colorOf(o, i), fin: !!o.fin, fam: '' }));
+    const ppl = live(state.people).map(o => {
+      const i = fams.findIndex(f => f.id === o.family);
+      return i < 0 ? null : { o, id: o.id, kind: 'person', name: o.name, color: colorOf(fams[i], i + 4), fin: !!o.fin, fam: fams[i].name };
+    }).filter(Boolean);
+    return [...kids, ...ppl];
+  }
+  function stats(id, gifts) {
+    const gs = gifts.filter(g => g.child === id), done = gs.filter(isDone).length;
+    return { gs, done, ideas: gs.filter(isIdea), pct: gs.length ? Math.round(done / gs.length * 100) : 0 };
+  }
+  const avatar = (x, sm) => `<span class="av ${sm ? 'sm' : ''}" style="background:${x.color};color:${ink(x.color)}">${esc((x.name || '?').trim().charAt(0).toUpperCase())}</span>`;
+  const ring = (pct, color) => `<span class="ring" style="--p:${pct * 3.6}deg;--rc:${color}"><span>${pct}%</span></span>`;
 
   // --- Piezas de un regalo ---
-  function metaHtml(g) {
+  const stKind = g => g.status === 'online' ? 'buy' : isDone(g) ? 'done' : g.status === 'idea' ? 'idea' : 'none';
+  const ST_ICON = { none: '', idea: '💡', buy: '📦', done: '✓' };
+  const ST_NEXT = { none: 'Marcar como comprado', idea: 'Marcar como comprado', buy: 'Marcar como recibido', done: 'Volver a idea' };
+  const nextStatus = g => ({ none: 'store', idea: 'store', buy: 'received', done: 'idea' })[stKind(g)];
+  const stBtn = g => { const k = stKind(g); return `<button class="st ${k}" data-act="cycle" title="${ST_NEXT[k]}" aria-label="${ST_NEXT[k]}">${ST_ICON[k]}</button>`; };
+
+  function giftMeta(g, lead = '') {
     const buyer = g.buyer && live(state.buyers).find(b => b.id === g.buyer);
-    const link = g.link ? ` · <a href="${esc(g.link)}" target="_blank" rel="noopener">enlace</a>` : '';
-    const meta = [g.store ? '🛒 ' + esc(g.store) : '', buyer ? '🛍️ ' + esc(buyer.name) : '', g.notes ? esc(g.notes) : ''].filter(Boolean).join(' · ');
-    return meta || link ? `<div class="gmeta">${meta}${link}</div>` : '';
+    const link = g.link && /^https?:\/\//i.test(g.link) ? `<a href="${esc(g.link)}" target="_blank" rel="noopener">enlace</a>` : '';
+    const bits = [lead, g.store ? '🛒 ' + esc(g.store) : '', buyer ? '🛍️ ' + esc(buyer.name) : '', g.notes ? esc(g.notes) : '', link].filter(Boolean).join(' · ');
+    const cats = g.cats.map(cat).filter(Boolean).map(c => `<span class="pill" style="background:${c.color};color:${ink(c.color)}">${esc(c.name)}</span>`).join('');
+    return (bits ? `<div class="mt">${bits}</div>` : '') + (cats ? `<div class="pills">${cats}</div>` : '');
   }
-  function catsHtml(g) {
-    const cats = g.cats.map(cat).filter(Boolean);
-    return `<details class="catsel" data-g="${g.id}" ${openCat === g.id ? 'open' : ''}>
-      <summary class="sel ${cats.length ? 'has' : ''}">${cats.length
-        ? cats.map(c => `<span class="pill" style="background:${c.color};color:${ink(c.color)}">${esc(c.name)}</span>`).join('')
-        : '<span class="ph">-Categoría-</span>'}</summary>
-      <div class="panel">${live(state.categories).map(c =>
-        `<label><input type="checkbox" class="catcb" data-cat="${c.id}" ${g.cats.includes(c.id) ? 'checked' : ''}><i style="background:${c.color}"></i>${esc(c.name)}</label>`).join('')}</div>
-    </details>`;
+  const giftRow = g => `<div class="gr ${stKind(g)}" data-id="${g.id}">${stBtn(g)}
+    <div class="gbody" data-act="edit"><div class="nm">${esc(g.name)}</div>${giftMeta(g)}</div>
+    <button class="ibtn sm" data-act="edit" title="Editar regalo" aria-label="Editar regalo">${ICON.edit}</button></div>`;
+
+  const GROUPS = [['Por comprar', g => isIdea(g)], ['En camino', g => g.status === 'online'], ['Listos', isDone]];
+
+  // --- Pantalla «Regalos»: una persona cada vez ---
+  function giftsHtml(os, gifts) {
+    if (!os.length) return `<div class="empty">Aún no hay personas.<br><button class="primary" data-act="add-owner">＋ Añadir persona</button></div>`;
+    const cur = os.find(x => x.id === ui.owner);
+    const { gs, done, ideas, pct } = stats(cur.id, gifts);
+    const shown = gs.filter(matches);
+    const tabs = os.map(x => {
+      const n = stats(x.id, gifts).ideas.length;
+      return `<button class="tab ${x.id === cur.id ? 'on' : ''}" data-act="goto" data-id="${x.id}">${avatar(x, true)}<span>${esc(x.name)}</span>${x.fin ? '<i class="ok">✓</i>' : n ? `<i>${n}</i>` : ''}</button>`;
+    }).join('') + `<button class="tab plus" data-act="add-owner" aria-label="Añadir persona">＋</button>`;
+    const sub = `${cur.fam ? esc(cur.fam) + ' · ' : ''}${done} de ${gs.length} listos · ${plural(ideas.length, 'idea', 'ideas')} por comprar`;
+    const hero = `<div class="hero ${cur.fin ? 'fin' : ''}">${ring(pct, cur.color)}
+      <div class="hgrow"><div class="hname">${esc(cur.name)}</div><div class="mt">${sub}</div></div>
+      <button class="finbtn ${cur.fin ? 'on' : ''}" data-act="fin" aria-pressed="${cur.fin}">${cur.fin ? '✓ Terminado' : 'Terminar'}</button>
+      <button class="ibtn" data-act="edit-owner" title="Editar" aria-label="Editar persona">${ICON.edit}</button></div>`;
+    const segs = `<div class="segs"><button data-act="mode" data-m="list" class="${ui.mode === 'list' ? 'on' : ''}">☰ Lista</button><button data-act="mode" data-m="cols" class="${ui.mode === 'cols' ? 'on' : ''}">▦ Columnas</button></div>`;
+    let body;
+    if (!gs.length) body = `<div class="empty">Aún no hay regalos para ${esc(cur.name)}.<br><span class="mt">Escribe abajo el nombre de uno y pulsa ＋</span></div>`;
+    else if (!shown.length) body = `<div class="empty">Nada con este filtro</div>`;
+    else if (ui.mode === 'cols') {
+      body = `<div class="kcols">${GROUPS.map(([t, f]) => { const it = shown.filter(f); return `<section class="kc"><h3><span>${t}</span><span>${it.length}</span></h3>${it.map(giftRow).join('') || '<div class="mt c">Vacío</div>'}</section>`; }).join('')}</div>`;
+    } else {
+      body = GROUPS.map(([t, f]) => { const it = shown.filter(f); return it.length ? `<div class="sh"><span>${t}</span><span>${it.length}</span></div>${it.map(giftRow).join('')}` : ''; }).join('');
+    }
+    return `<div class="tabs" id="tabs">${tabs}</div>${hero}${segs}${body}`;
   }
-  const statusHtml = g => `<select class="sel status-sel ${g.status ? 'on st-' + g.status : ''}" aria-label="Estado">
-      <option value="">-Estado-</option>
-      ${STATUSES.map(([k, l]) => `<option value="${k}" ${g.status === k ? 'selected' : ''}>${l}</option>`).join('')}
-    </select>`;
 
-  // Un solo diseño de regalo: tarjeta (niños) o fila sin caja (dentro de una persona de familia).
-  function giftHtml(g, flat) {
-    return `<div class="gift ${flat ? 'flat' : ''} ${isDone(g) ? 'done' : isBought(g) ? 'bought' : ''}" data-id="${g.id}">
-      <div class="ghead"><div class="gname">${esc(g.name)}</div>${editBtn('edit', 'Editar regalo', true)}</div>
-      ${metaHtml(g)}
-      <div class="controls">${catsHtml(g)}${statusHtml(g)}</div></div>`;
+  // --- Pantalla «Resumen»: qué falta ---
+  function homeHtml(os, gifts) {
+    if (!os.length) return `<div class="empty">Aún no hay personas.<br><button class="primary" data-act="add-owner">＋ Añadir persona</button></div>`;
+    const info = os.map(x => ({ x, ...stats(x.id, gifts) }));
+    const open = info.filter(i => !i.x.fin), ideas = open.reduce((n, i) => n + i.ideas.length, 0);
+    const big = open.length
+      ? `<div class="big"><div><b>${plural(ideas, 'idea', 'ideas')}</b><span>por comprar · ${plural(open.length, 'persona', 'personas')} sin terminar</span></div><i>🎁</i></div>`
+      : `<div class="big ok"><div><b>¡Todo terminado!</b><span>Ya has acabado con todas las personas</span></div><i>🎉</i></div>`;
+    const card = i => {
+      const chips = i.ideas.slice(0, 3).map(g => `<span class="ichip">💡 ${esc(g.name)}</span>`).join('') + (i.ideas.length > 3 ? `<span class="ichip">+${i.ideas.length - 3}</span>` : '');
+      return `<button class="ocard ${i.x.fin ? 'fin' : ''}" data-act="goto" data-id="${i.x.id}">
+        <span class="orow">${ring(i.pct, i.x.color)}<span class="hgrow"><span class="hname">${esc(i.x.name)}${i.x.fin ? ' ✓' : ''}</span><span class="mt">${i.x.fam ? esc(i.x.fam) + ' · ' : ''}${i.done} de ${i.gs.length} listos</span></span><span class="chev">›</span></span>
+        ${!i.x.fin && (chips || !i.gs.length) ? `<span class="chips2">${chips || '<span class="mt">Aún sin regalos</span>'}</span>` : ''}</button>`;
+    };
+    return big + [...open, ...info.filter(i => i.x.fin)].map(card).join('');
   }
 
-  const head = (id, min, name, editAct, editLabel, fin) =>
-    `<div class="col-head"><button class="ibtn chev ${min ? 'closed' : ''}" data-act="toggle-col" title="${min ? 'Mostrar' : 'Minimizar'}" aria-label="${min ? 'Mostrar' : 'Minimizar'}" aria-expanded="${!min}">${ICON.chev}</button><button class="col-title" data-act="toggle-col">${esc(name)}</button>${fin ? finBtn(fin) : ''}${editBtn(editAct, editLabel)}</div>`;
-  const banner = (all, extra) => {
-    const done = all.filter(isDone).length, bought = all.filter(isBought).length;
-    const pct = all.length ? Math.round(done / all.length * 100) : 0;
-    return `<div class="stats">${extra ? `<span class="sp">${extra}</span>` : ''}<span class="sp">${plural(all.length, 'regalo', 'regalos')}</span><span class="sp">${plural(bought, 'comprado', 'comprados')}</span><span class="sp ok" title="Listos: ya comprados en tienda o recibidos">${plural(done, 'listo', 'listos')}</span></div>
-        <div class="bar"><i style="width:${pct}%"></i></div>`;
-  };
-  const sec = (title, act, label) => `<div class="sec"><h2>${title}</h2><button class="addsec" data-act="${act}">${label}</button></div>`;
+  // --- Pantalla «Compras»: lista de lo que falta y lo comprado ---
+  function shopHtml(os, gifts) {
+    const byId = new Map(os.map(x => [x.id, x]));
+    const all = gifts.filter(g => byId.has(g.child));
+    const pend = all.filter(isIdea), got = all.filter(isBought);
+    const list = shopFilter === 'pending' ? pend : shopFilter === 'bought' ? got : all;
+    const chips = [['pending', `Pendientes · ${pend.length}`], ['bought', `Comprados · ${got.length}`], ['all', 'Todo']]
+      .map(([k, l]) => `<button class="${shopFilter === k ? 'on' : ''}" data-act="shopf" data-f="${k}">${l}</button>`).join('');
+    const rows = list.map(g => {
+      const o = byId.get(g.child);
+      return `<div class="gr ${stKind(g)}" data-id="${g.id}">${avatar(o, true)}
+        <div class="gbody" data-act="edit"><div class="nm">${esc(g.name)}</div>${giftMeta(g, 'para ' + esc(o.name))}</div>
+        ${isIdea(g) ? `<div class="qbtns"><button data-act="setst" data-s="store">Tienda</button><button data-act="setst" data-s="online">Online</button></div>` : stBtn(g)}</div>`;
+    }).join('');
+    return `<div class="fchips">${chips}</div>${rows || `<div class="empty">${shopFilter === 'pending' ? '🎉 No queda nada por comprar' : 'Nada por aquí'}</div>`}`;
+  }
 
-  function render() {
+  // --- Dibujar ---
+  let tabsLeft = 0;
+  function render(top) {
     needRender = false;
-    const y = window.scrollY, board = $('#board');
+    const y = top ? 0 : window.scrollY, board = $('#board');
     board.style.minHeight = board.offsetHeight + 'px'; // evita que la página se acorte un instante
+    const prevTabs = $('#tabs'); if (prevTabs) tabsLeft = prevTabs.scrollLeft;
     const cats = live(state.categories);
     const fc = $('#f-cat'), cur = fc.value;
-    fc.innerHTML = '<option value="">Todas las categorías</option>' +
-      cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    fc.innerHTML = '<option value="">Todas las categorías</option>' + cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
     fc.value = cats.some(c => c.id === cur) ? cur : '';
     updateFilterBtn();
 
-    const gifts = live(state.gifts);
-    $('#tip').hidden = tipDone() || gifts.length > 0;
-    const kids = live(state.children).map((ch, i) => {
-      const all = gifts.filter(g => g.child === ch.id);
-      const shown = all.filter(matches);
-      const min = collapsed.has(ch.id);
-      return `<section class="col ${min ? 'collapsed' : ''} ${ch.fin ? 'fin' : ''}" data-child="${ch.id}" style="--c:${colorOf(ch, i)}">
-        ${head(ch.id, min, ch.name, 'edit-child', 'Editar ficha', ch)}
-        ${banner(all, '')}
-        ${min ? '' : `${shown.length ? `<div class="glist">${shown.map(g => giftHtml(g)).join('')}</div>` : `<div class="empty">${all.length ? 'Nada con este filtro' : 'Aún no hay regalos'}</div>`}
-        <button class="add" data-act="add">＋ Añadir regalo</button>`}
-      </section>`;
-    });
+    const os = owners(), gifts = live(state.gifts);
+    if (!os.some(x => x.id === ui.owner)) ui.owner = os[0]?.id || null;
+    if (!['home', 'gifts', 'shop'].includes(ui.view)) ui.view = 'home';
+    board.innerHTML = ui.view === 'home' ? homeHtml(os, gifts) : ui.view === 'shop' ? shopHtml(os, gifts) : giftsHtml(os, gifts);
 
-    const people = live(state.people);
-    const fams = live(state.families).map((f, i) => {
-      const members = people.filter(p => p.family === f.id);
-      const ids = new Set(members.map(p => p.id));
-      const all = gifts.filter(g => ids.has(g.child));
-      const min = collapsed.has(f.id);
-      const body = members.map(p => {
-        const mine = all.filter(g => g.child === p.id), shown = mine.filter(matches);
-        return `<div class="person ${p.fin ? 'fin' : ''}" data-person="${p.id}">
-          <div class="pname"><span>${esc(p.name)}</span><small>${plural(mine.length, 'regalo', 'regalos')}</small>${finBtn(p, true)}${editBtn('edit-person', 'Editar persona', true)}</div>
-          ${shown.map(g => giftHtml(g, true)).join('')}
-          <button class="linkbtn" data-act="add">＋ Añadir regalo</button>
-        </div>`;
-      }).join('');
-      return `<section class="col fam ${min ? 'collapsed' : ''}" data-family="${f.id}" style="--c:${colorOf(f, i + 4)}">
-        ${head(f.id, min, f.name, 'edit-family', 'Editar familia')}
-        ${banner(all, plural(members.length, 'persona', 'personas'))}
-        ${min ? '' : `${body ? `<div class="people">${body}</div>` : '<div class="empty">Añade a las personas de esta familia</div>'}
-        <button class="add" data-act="add-person">＋ Añadir persona</button>`}
-      </section>`;
-    });
-    renderPending(gifts);
-    $('#board').innerHTML = sec('Niños', 'add-child', '＋ Niño') + `<div class="grid">${kids.join('')}</div>` +
-      sec('Familias', 'add-family', '＋ Familia') + `<div class="grid fams">${fams.join('')}</div>`;
+    document.querySelectorAll('#nav [data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === ui.view));
+    const pend = gifts.filter(g => isIdea(g) && os.some(x => x.id === g.child)).length;
+    $('#nav-badge').textContent = pend || ''; $('#nav-badge').hidden = !pend;
+    const onGifts = ui.view === 'gifts' && !!os.length;
+    $('#quick').hidden = !onGifts;
+    document.body.classList.toggle('has-quick', onGifts);
+    $('#btn-filter').hidden = ui.view !== 'gifts';
+    $('#filters').hidden = ui.view !== 'gifts' || !filtersOpen;
+    const owner = os.find(x => x.id === ui.owner);
+    if (owner) $('#quick-name').placeholder = `Añadir regalo para ${owner.name}…`;
+
+    const tabs = $('#tabs');
+    if (tabs) {
+      tabs.scrollLeft = tabsLeft;
+      const t = tabs.querySelector('.tab.on');
+      if (t && (t.offsetLeft < tabs.scrollLeft || t.offsetLeft + t.offsetWidth > tabs.scrollLeft + tabs.clientWidth))
+        tabs.scrollLeft = t.offsetLeft - (tabs.clientWidth - t.offsetWidth) / 2;
+    }
     restoreScroll(y, [120]);
     requestAnimationFrame(() => { board.style.minHeight = ''; restoreScroll(y, []); });
   }
-
-  // --- Resumen de pendientes (arriba): quién no está terminado y qué ideas faltan por comprar ---
-  let pendingOpen = false;
-  const isIdea = g => !g.status || g.status === 'idea';
-  function renderPending(gifts) {
-    const box = $('#pending');
-    const famName = id => live(state.families).find(f => f.id === id)?.name || '';
-    const owners = [
-      ...live(state.children).map((o, i) => ({ o, id: o.id, color: colorOf(o, i), label: o.name })),
-      ...live(state.people).filter(p => live(state.families).some(f => f.id === p.family))
-        .map(o => ({ o, id: o.id, color: colorOf(live(state.families).find(f => f.id === o.family), 4), label: `${o.name} · ${famName(o.family)}` }))
-    ];
-    if (!owners.length) { box.hidden = true; return; }
-    const open = owners.filter(x => !x.o.fin);
-    const ideas = open.reduce((n, x) => n + gifts.filter(g => g.child === x.id && isIdea(g)).length, 0);
-    const rows = open.map(x => {
-      const idea = gifts.filter(g => g.child === x.id && isIdea(g));
-      const total = gifts.filter(g => g.child === x.id).length;
-      const info = idea.length ? `<span class="pidea">${idea.map(g => esc(g.name)).join(' · ')}</span>`
-        : !total ? '<span class="pidea">Aún sin regalos</span>' : '<span class="pidea">Sin ideas pendientes</span>';
-      return `<li><button class="prow" data-goto="${x.id}" style="--c:${x.color}"><b>${esc(x.label)}</b>${idea.length ? `<em>💡 ${idea.length}</em>` : ''}${info}</button></li>`;
-    }).join('');
-    box.hidden = false;
-    box.innerHTML = `<details ${pendingOpen ? 'open' : ''}><summary><b>📝 Pendiente</b>
-      <span>${open.length ? `${plural(open.length, 'persona', 'personas')} sin terminar · ${plural(ideas, 'idea', 'ideas')}` : '🎉 ¡Todo terminado!'}</span></summary>
-      ${open.length ? `<ul>${rows}</ul>` : ''}</details>`;
-  }
-  $('#pending').addEventListener('toggle', e => { pendingOpen = e.target.open; }, true);
-  $('#pending').addEventListener('click', e => {
-    const b = e.target.closest('[data-goto]'); if (!b) return;
-    const id = b.dataset.goto, p = state.people.find(x => x.id === id);
-    if (collapsed.has(id) || (p && collapsed.has(p.family))) { collapsed.delete(id); if (p) collapsed.delete(p.family); saveCollapsed(); render(); }
-    const el = document.querySelector(`[data-child="${id}"],[data-person="${id}"]`);
-    if (el) { scrollToken++; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1500); }
-  });
-
-  // --- Aviso de primera vez (solo en este dispositivo) ---
-  const TIP_KEY = 'lista-reyes-tip';
-  const tipDone = () => { try { return !!localStorage.getItem(TIP_KEY); } catch { return false; } };
-  $('#tip-ok').onclick = () => { try { localStorage.setItem(TIP_KEY, '1'); } catch {} $('#tip').hidden = true; };
 
   // --- Filtros plegables ---
   const filtersEl = $('#filters'), filterBtn = $('#btn-filter');
@@ -285,7 +283,8 @@
     filterBtn.classList.toggle('active', n > 0);
     $('#filter-count').textContent = n || '';
   }
-  filterBtn.onclick = () => { filtersEl.hidden = !filtersEl.hidden; filterBtn.setAttribute('aria-expanded', !filtersEl.hidden); };
+  filterBtn.onclick = () => { filtersOpen = !filtersOpen; filtersEl.hidden = !filtersOpen; filterBtn.setAttribute('aria-expanded', filtersOpen); };
+  $('#f-status').onchange = $('#f-cat').onchange = () => render();
 
   // --- Toast con deshacer ---
   let toastTimer;
@@ -298,61 +297,53 @@
     toastTimer = setTimeout(() => (t.hidden = true), 5000);
   }
 
+  // --- Cambios rápidos de estado y de «terminado» ---
+  function setGiftStatus(g, s) {
+    const prev = g.status;
+    g.status = s; touch(g); save(); render();
+    toast('Estado actualizado', () => { g.status = prev; touch(g); save(); render(); });
+  }
+  function toggleFin(item) {
+    item.fin = !item.fin; touch(item); save(); render();
+    toast(item.fin ? `Terminado con ${item.name} ✔` : `${item.name} vuelve a pendiente`, () => { item.fin = !item.fin; touch(item); save(); render(); });
+  }
+
   // --- Tablero ---
   $('#board').addEventListener('click', e => {
+    if (e.target.closest('a')) return;
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const act = btn.dataset.act;
-    if (act === 'add-child') return addChild();
-    if (act === 'add-family') return addFamily();
-    const col = btn.closest('.col');
-    const colId = col.dataset.child || col.dataset.family;
-    const personId = btn.closest('.person')?.dataset.person;
-    if (act === 'toggle-fin') {
-      const o = state.children.find(x => x.id === (personId || colId)) || state.people.find(x => x.id === personId);
-      if (!o) return;
-      o.fin = !o.fin; touch(o); save(); render();
-      return toast(o.fin ? `Terminado con ${o.name} ✔` : `${o.name} vuelve a pendiente`, () => { o.fin = !o.fin; touch(o); save(); render(); });
-    }
-    if (act === 'toggle-col') {
-      collapsed.has(colId) ? collapsed.delete(colId) : collapsed.add(colId);
-      saveCollapsed(); return render();
-    }
-    if (act === 'edit-child') return openOwner('child', colId);
-    if (act === 'edit-family') return openOwner('family', colId);
-    if (act === 'edit-person') return openOwner('person', personId);
-    if (act === 'add-person') return addPerson(colId);
-    if (act === 'add') return openGift(personId || colId, null);
-    if (act === 'edit') {
-      const g = state.gifts.find(x => x.id === btn.closest('[data-id]').dataset.id);
-      return openGift(g.child, g);
-    }
+    const gEl = btn.closest('.gr');
+    const g = gEl && state.gifts.find(x => x.id === gEl.dataset.id);
+    const cur = owners().find(x => x.id === ui.owner);
+    if (act === 'goto') { ui.owner = btn.dataset.id; ui.view = 'gifts'; saveUi(); return render(true); }
+    if (act === 'add-owner') return openAdd();
+    if (act === 'mode') { ui.mode = btn.dataset.m; saveUi(); return render(); }
+    if (act === 'shopf') { shopFilter = btn.dataset.f; return render(); }
+    if (act === 'fin') return cur && toggleFin(cur.o);
+    if (act === 'edit-owner') return cur && openOwner(cur.kind, cur.id);
+    if (!g) return;
+    if (act === 'edit') return openGift(g.child, g);
+    if (act === 'cycle') return setGiftStatus(g, nextStatus(g));
+    if (act === 'setst') return setGiftStatus(g, btn.dataset.s);
   });
-  document.addEventListener('click', e => {
-    if (!openCat || e.target.closest('.catsel')) return;
-    openCat = null;
-    document.querySelectorAll('.catsel[open]').forEach(d => (d.open = false));
-  });
-  $('#board').addEventListener('toggle', e => {
-    const id = e.target.dataset?.g;
-    if (!id) return;
-    if (e.target.open) openCat = id; else if (openCat === id) openCat = null;
-  }, true);
-  $('#board').addEventListener('change', e => {
-    const gEl = e.target.closest('[data-id]');
-    if (!gEl) return;
-    const g = state.gifts.find(x => x.id === gEl.dataset.id);
-    if (e.target.classList.contains('status-sel')) g.status = e.target.value;
-    else if (e.target.classList.contains('catcb')) {
-      const id = e.target.dataset.cat;
-      g.cats = e.target.checked ? [...new Set([...g.cats, id])] : g.cats.filter(x => x !== id);
-      openCat = g.id;
-    } else return;
-    touch(g); save(); render();
-  });
-  $('#f-status').onchange = $('#f-cat').onchange = render;
 
-  // --- Diálogo de regalo ---
+  // --- Navegación inferior y añadido rápido ---
+  $('#nav').addEventListener('click', e => {
+    const b = e.target.closest('[data-view]'); if (!b) return;
+    ui.view = b.dataset.view; saveUi(); render(true);
+  });
+  $('#quick').addEventListener('submit', e => {
+    e.preventDefault();
+    const inp = $('#quick-name'), name = inp.value.trim();
+    if (!ui.owner) return;
+    if (!name) return openGift(ui.owner, null);
+    state.gifts.push(mk({ id: uid(), child: ui.owner, name, store: '', link: '', notes: '', status: 'idea', buyer: '', cats: [] }));
+    inp.value = ''; save(); render();
+  });
+
+  // --- Diálogo de regalo (hoja inferior) ---
   const dlg = $('#dlg-gift'), form = $('#form-gift');
   function renderPick() {
     $('#gift-cats').className = 'chips';
@@ -364,6 +355,11 @@
     pickedCats.has(c.dataset.id) ? pickedCats.delete(c.dataset.id) : pickedCats.add(c.dataset.id);
     renderPick();
   });
+  const setFormStatus = v => {
+    form.status.value = v;
+    document.querySelectorAll('#gift-status [data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === v));
+  };
+  $('#gift-status').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (b) setFormStatus(b.dataset.s); });
   function fillBuyers(val) {
     form.buyer.innerHTML = '<option value="">-Lo compra-</option>' +
       live(state.buyers).map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('');
@@ -373,7 +369,7 @@
   function openGift(ownerId, g) {
     editing = { ownerId, giftId: g?.id || null };
     pickedCats = new Set(g?.cats || []);
-    $('#gift-title').textContent = g ? 'Editar regalo' : 'Nuevo regalo para ' + ownerName(ownerId);
+    $('#gift-title').textContent = g ? g.name : 'Nuevo regalo para ' + ownerName(ownerId);
     form.reset();
     fillBuyers(g?.buyer || '');
     $('#buyer-names').hidden = !buyersUnedited();
@@ -381,13 +377,11 @@
     $('#gift-delete').hidden = !g;
     if (g) {
       form.name.value = g.name; form.store.value = g.store || ''; form.link.value = g.link || '';
-      form.notes.value = g.notes || ''; form.status.value = g.status || '';
+      form.notes.value = g.notes || '';
     }
-    paintStatus();
+    setFormStatus(g?.status || 'idea');
     renderPick(); dlg.showModal();
   }
-  const paintStatus = () => { form.status.className = 'sel' + (form.status.value ? ' on st-' + form.status.value : ''); };
-  form.status.addEventListener('change', paintStatus);
   $('#gift-cancel').onclick = () => dlg.close();
   $('#gift-delete').onclick = () => {
     const g = state.gifts.find(x => x.id === editing.giftId);
@@ -399,13 +393,62 @@
     e.preventDefault();
     const data = {
       name: form.name.value.trim(), store: form.store.value.trim(), link: form.link.value.trim(), notes: form.notes.value.trim(),
-      status: form.status.value, buyer: form.buyer.value, cats: [...pickedCats]
+      status: form.status.value || 'idea', buyer: form.buyer.value, cats: [...pickedCats]
     };
     if (!data.name) return;
     const existing = editing.giftId && state.gifts.find(g => g.id === editing.giftId);
     if (existing) touch(Object.assign(existing, data));
     else state.gifts.push(mk({ id: uid(), child: editing.ownerId, ...data }));
     save(); render(); dlg.close();
+  });
+
+  // --- Añadir persona (niño o persona de una familia) ---
+  const dadd = $('#dlg-add'), fadd = $('#form-add');
+  function openAdd() {
+    fadd.reset();
+    fadd.group.innerHTML = '<option value="child">👧 Niño/a (ficha propia)</option>' +
+      live(state.families).map(f => `<option value="${f.id}">👪 ${esc(f.name)}</option>`).join('') +
+      '<option value="newfam">＋ Nueva familia…</option>';
+    $('#newfam').hidden = true;
+    dadd.showModal(); fadd.name.focus();
+  }
+  fadd.group.addEventListener('change', () => { $('#newfam').hidden = fadd.group.value !== 'newfam'; });
+  $('#add-cancel').onclick = () => dadd.close();
+  fadd.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = fadd.name.value.trim(), g = fadd.group.value;
+    if (!name) return;
+    let id = uid();
+    if (g === 'child') {
+      const n = live(state.children).length;
+      state.children.push(mk({ id, name, color: PALETTE[n % PALETTE.length] }));
+    } else {
+      let fam = g;
+      if (g === 'newfam') {
+        const n = live(state.families).length;
+        fam = uid();
+        state.families.push(mk({ id: fam, name: fadd.fam.value.trim() || 'Familia ' + (n + 1), color: PALETTE[(n + 4) % PALETTE.length] }));
+      }
+      state.people.push(mk({ id, family: fam, name }));
+    }
+    ui.owner = id; ui.view = 'gifts'; saveUi();
+    save(); render(true); dadd.close();
+  });
+
+  // --- Familias ---
+  const dfam = $('#dlg-fams');
+  function renderFams() {
+    const ppl = live(state.people);
+    $('#fam-list').innerHTML = live(state.families).map(f => `<div class="catrow" data-id="${f.id}">
+      <span class="dot" style="background:${f.color || PALETTE[4]}"></span><span class="grow">${esc(f.name)}</span>
+      <small>${plural(ppl.filter(p => p.family === f.id).length, 'persona', 'personas')}</small>
+      <button class="ibtn sm" data-edit title="Editar familia" aria-label="Editar familia">${ICON.edit}</button></div>`).join('') || '<p class="hint">Aún no hay familias.</p>';
+  }
+  $('#btn-fams').onclick = () => { renderFams(); dfam.showModal(); };
+  $('#fams-close').onclick = () => dfam.close();
+  $('#fam-add').onclick = () => addFamily();
+  $('#fam-list').addEventListener('click', e => {
+    const r = e.target.closest('[data-edit]'); if (r) openOwner('family', r.closest('.catrow').dataset.id);
   });
 
   // --- Diálogo de ficha / familia / persona (nombre, color, eliminar) ---
@@ -428,6 +471,7 @@
     fch.name.select();
   }
   $('#child-cancel').onclick = () => dch.close();
+  dch.addEventListener('close', () => { if (dfam.open) renderFams(); });
   fch.addEventListener('submit', e => {
     e.preventDefault();
     const { kind, item } = editingOwner;
@@ -452,13 +496,6 @@
     save(); render(); dch.close();
     toast('Eliminado', () => { items.forEach(x => { x.del = false; touch(x); }); save(); render(); });
   };
-
-  function addPerson(familyId) {
-    const n = live(state.people).filter(p => p.family === familyId).length;
-    const p = mk({ id: uid(), family: familyId, name: 'Persona ' + (n + 1) });
-    state.people.push(p); save(); render();
-    openOwner('person', p.id);
-  }
 
   // --- Categorías ---
   const dc = $('#dlg-cats');
@@ -530,12 +567,6 @@
   };
   applyTheme(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
 
-  function addChild() {
-    const n = live(state.children).length;
-    const ch = mk({ id: uid(), name: 'Niño ' + (n + 1), color: PALETTE[n % PALETTE.length] });
-    state.children.push(ch); save(); render();
-    openOwner('child', ch.id);
-  }
   function addFamily() {
     const n = live(state.families).length;
     const f = mk({ id: uid(), name: 'Familia ' + (n + 1), color: PALETTE[(n + 4) % PALETTE.length] });
@@ -602,8 +633,7 @@
   const merge = (a, b) => Object.fromEntries(KEYS.map(k => [k, mergeList(a[k], b[k])]));
 
   function canRender() {
-    const a = document.activeElement;
-    return !(a && a.classList.contains('status-sel'));
+    return true;
   }
 
   const headers = { 'Content-Type': 'application/json' };
