@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = '2.1.0.0846';
+  const VERSION = '2.2.0.0849';
   const KEY = 'lista-reyes-v1';
   const SYNC_KEY = 'lista-reyes-sync';
   // URL de la Realtime Database de Firebase (sin barra final), p. ej. https://xxxx-default-rtdb.europe-west1.firebasedatabase.app
@@ -139,14 +139,15 @@
   const ICON = { edit: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>') };
 
   // --- Personas (niños y personas de familia) ---
+  // Grupos: «Mis hijos», cada familia y «Otros» (personas sin familia).
   function owners() {
-    const fams = live(state.families);
-    const kids = live(state.children).map((o, i) => ({ o, id: o.id, kind: 'child', name: o.name, color: colorOf(o, i), fin: !!o.fin, fam: '' }));
-    const ppl = live(state.people).map(o => {
-      const i = fams.findIndex(f => f.id === o.family);
-      return i < 0 ? null : { o, id: o.id, kind: 'person', name: o.name, color: colorOf(fams[i], i + 4), fin: !!o.fin, fam: fams[i].name };
-    }).filter(Boolean);
-    return [...kids, ...ppl];
+    const fams = live(state.families), people = live(state.people);
+    const kids = live(state.children).map((o, i) => ({ o, id: o.id, kind: 'child', name: o.name, color: colorOf(o, i), fin: !!o.fin, group: 'kids', gname: 'Mis hijos', fam: '' }));
+    const inFam = fams.flatMap((f, i) => people.filter(p => p.family === f.id)
+      .map(o => ({ o, id: o.id, kind: 'person', name: o.name, color: colorOf(f, i + 4), fin: !!o.fin, group: f.id, gname: f.name, fam: f.name })));
+    const others = people.filter(p => !fams.some(f => f.id === p.family))
+      .map(o => ({ o, id: o.id, kind: 'person', name: o.name, color: '#cdc9d6', fin: !!o.fin, group: 'others', gname: 'Otros', fam: 'Otros' }));
+    return [...kids, ...inFam, ...others];
   }
   function stats(id, gifts) {
     const gs = gifts.filter(g => g.child === id), done = gs.filter(isDone).length;
@@ -181,9 +182,12 @@
     const cur = os.find(x => x.id === ui.owner);
     const { gs, done, ideas, pct } = stats(cur.id, gifts);
     const shown = gs.filter(matches);
+    let lastGroup = null;
     const tabs = os.map(x => {
       const n = stats(x.id, gifts).ideas.length;
-      return `<button class="tab ${x.id === cur.id ? 'on' : ''}" data-act="goto" data-id="${x.id}">${avatar(x, true)}<span>${esc(x.name)}</span>${x.fin ? '<i class="ok">✓</i>' : n ? `<i>${n}</i>` : ''}</button>`;
+      const label = x.group !== lastGroup ? `<span class="tgroup">${esc(x.gname)}</span>` : '';
+      lastGroup = x.group;
+      return `${label}<button class="tab ${x.id === cur.id ? 'on' : ''}" data-act="goto" data-id="${x.id}">${avatar(x, true)}<span>${esc(x.name)}</span>${x.fin ? '<i class="ok">✓</i>' : n ? `<i>${n}</i>` : ''}</button>`;
     }).join('') + `<button class="tab plus" data-act="add-owner" aria-label="Añadir persona">＋</button>`;
     const sub = `${cur.fam ? esc(cur.fam) + ' · ' : ''}${done} de ${gs.length} listos · ${plural(ideas.length, 'idea', 'ideas')} por comprar`;
     const hero = `<div class="hero ${cur.fin ? 'fin' : ''}">${ring(pct, cur.color)}
@@ -216,7 +220,13 @@
         <span class="orow">${ring(i.pct, i.x.color)}<span class="hgrow"><span class="hname">${esc(i.x.name)}${i.x.fin ? ' ✓' : ''}</span><span class="mt">${i.x.fam ? esc(i.x.fam) + ' · ' : ''}${i.done} de ${i.gs.length} listos</span></span><span class="chev">›</span></span>
         ${!i.x.fin && (chips || !i.gs.length) ? `<span class="chips2">${chips || '<span class="mt">Aún sin regalos</span>'}</span>` : ''}</button>`;
     };
-    return `<div class="home">${big}${[...open, ...info.filter(i => i.x.fin)].map(card).join('')}</div>`;
+    let last = null;
+    const cards = info.map(i => {
+      const h = i.x.group !== last ? `<div class="sh gh"><span>${esc(i.x.gname)}</span></div>` : '';
+      last = i.x.group;
+      return h + card(i);
+    }).join('');
+    return `<div class="home">${big}${cards}</div>`;
   }
 
   // --- Pantalla «Compras»: lista de lo que falta y lo comprado ---
@@ -406,9 +416,9 @@
   const dadd = $('#dlg-add'), fadd = $('#form-add');
   function openAdd() {
     fadd.reset();
-    fadd.group.innerHTML = '<option value="child">👧 Niño/a (ficha propia)</option>' +
+    fadd.group.innerHTML = '<option value="child">👧 Mis hijos</option>' +
       live(state.families).map(f => `<option value="${f.id}">👪 ${esc(f.name)}</option>`).join('') +
-      '<option value="newfam">＋ Nueva familia…</option>';
+      '<option value="others">🙂 Otros (sin familia)</option><option value="newfam">＋ Nueva familia…</option>';
     $('#newfam').hidden = true;
     dadd.showModal(); fadd.name.focus();
   }
@@ -423,7 +433,7 @@
       const n = live(state.children).length;
       state.children.push(mk({ id, name, color: PALETTE[n % PALETTE.length] }));
     } else {
-      let fam = g;
+      let fam = g;  // id de familia o 'others'
       if (g === 'newfam') {
         const n = live(state.families).length;
         fam = uid();

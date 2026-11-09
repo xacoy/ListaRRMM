@@ -234,3 +234,10 @@ body.has-quick .version{bottom:calc(var(--nav-h) + var(--quick-h) - 6px)}
   .quick{--w:1400px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Grupos: mis hijos, familias y otros */
+.tgroup{flex:none;align-self:center;font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 0 0 4px;white-space:nowrap}
+.tgroup:first-child{padding-left:0}
+.gh{margin:10px 4px 0}
+@media (min-width:768px){.home .gh{grid-column:1/-1;margin:8px 4px 0}}
+@media (min-width:1100px){.gwrap .tgroup{align-self:flex-start;margin:10px 4px 0}.gwrap .tgroup:first-child{margin-top:0}}
